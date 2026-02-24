@@ -355,11 +355,11 @@ model UrlRule {
   organizationId String
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   name           String
-  // Glob pattern matched against the full URL path, e.g. "**/booking-confirmed*"
+  // "contains" = glob pattern (e.g. "**/booking*"), "exact" = full URL must equal pattern
+  matchType      String       @default("contains")
+  // Glob pattern (contains) or exact URL (exact), matched against the full URL path
   pattern        String
-  // Optional: if the URL also matches this pattern, skip the rule entirely.
-  // Use this to prevent /thank-you* from also firing on /thank-you-variant.
-  // e.g. excludePattern = "**/thank-you-v*"
+  // Optional: if the URL also matches this pattern, skip the rule entirely (contains mode only)
   excludePattern String?
   eventType      EventType
   tags           String[]

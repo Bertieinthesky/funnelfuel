@@ -35,6 +35,7 @@ const EVENT_TYPES = [
 interface UrlRule {
   id: string;
   name: string;
+  matchType: string;
   pattern: string;
   excludePattern: string | null;
   eventType: string;
@@ -56,6 +57,7 @@ export function UrlRulesManager({ orgId, initialRules }: Props) {
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({
     name: "",
+    matchType: "contains" as string,
     pattern: "",
     excludePattern: "",
     eventType: "URL_RULE_MATCH" as string,
@@ -70,8 +72,9 @@ export function UrlRulesManager({ orgId, initialRules }: Props) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name: form.name,
+          matchType: form.matchType,
           pattern: form.pattern,
-          excludePattern: form.excludePattern || undefined,
+          excludePattern: form.matchType === "contains" ? (form.excludePattern || undefined) : undefined,
           eventType: form.eventType,
           tags: form.tags
             .split(",")
@@ -80,7 +83,7 @@ export function UrlRulesManager({ orgId, initialRules }: Props) {
         }),
       });
       if (res.ok) {
-        setForm({ name: "", pattern: "", excludePattern: "", eventType: "URL_RULE_MATCH", tags: "" });
+        setForm({ name: "", matchType: "contains", pattern: "", excludePattern: "", eventType: "URL_RULE_MATCH", tags: "" });
         setShowForm(false);
         router.refresh();
       }
@@ -155,28 +158,47 @@ export function UrlRulesManager({ orgId, initialRules }: Props) {
               </div>
               <div>
                 <label className="mb-1.5 block text-[11px] font-medium uppercase tracking-wider text-muted-foreground/60">
-                  URL pattern (glob)
+                  Match type
+                </label>
+                <Select value={form.matchType} onValueChange={(v) => setForm({ ...form, matchType: v })}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="contains">Contains (glob pattern)</SelectItem>
+                    <SelectItem value="exact">Exact Match (full URL)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <label className="mb-1.5 block text-[11px] font-medium uppercase tracking-wider text-muted-foreground/60">
+                  {form.matchType === "exact" ? "URL (exact match)" : "URL pattern (glob)"}
                 </label>
                 <Input
                   type="text"
-                  placeholder="e.g. **/thank-you* or */checkout*"
+                  placeholder={form.matchType === "exact"
+                    ? "e.g. https://www.10xbnb.com/co-listing-secrets"
+                    : "e.g. **/thank-you* or */checkout*"
+                  }
                   value={form.pattern}
                   onChange={(e) => setForm({ ...form, pattern: e.target.value })}
                   className="font-mono"
                 />
               </div>
-              <div>
-                <label className="mb-1.5 block text-[11px] font-medium uppercase tracking-wider text-muted-foreground/60">
-                  Exclude pattern (optional)
-                </label>
-                <Input
-                  type="text"
-                  placeholder="e.g. **/thank-you-variant*"
-                  value={form.excludePattern}
-                  onChange={(e) => setForm({ ...form, excludePattern: e.target.value })}
-                  className="font-mono"
-                />
-              </div>
+              {form.matchType === "contains" && (
+                <div className="md:col-span-2">
+                  <label className="mb-1.5 block text-[11px] font-medium uppercase tracking-wider text-muted-foreground/60">
+                    Exclude pattern (optional)
+                  </label>
+                  <Input
+                    type="text"
+                    placeholder="e.g. **/thank-you-variant*"
+                    value={form.excludePattern}
+                    onChange={(e) => setForm({ ...form, excludePattern: e.target.value })}
+                    className="font-mono"
+                  />
+                </div>
+              )}
               <div className="md:col-span-2">
                 <label className="mb-1.5 block text-[11px] font-medium uppercase tracking-wider text-muted-foreground/60">
                   Tags (comma-separated)
@@ -242,10 +264,19 @@ export function UrlRulesManager({ orgId, initialRules }: Props) {
                       </Badge>
                     </div>
                     <div className="mt-1 flex items-center gap-3 text-xs text-muted-foreground">
+                      <Badge
+                        variant="secondary"
+                        className={cn(
+                          "text-[10px] px-1.5 py-0",
+                          rule.matchType === "exact" ? "bg-yellow-dim text-yellow" : "bg-secondary text-muted-foreground"
+                        )}
+                      >
+                        {rule.matchType === "exact" ? "exact" : "contains"}
+                      </Badge>
                       <code className="rounded-md bg-background px-1.5 py-0.5 font-mono text-[11px]">
                         {rule.pattern}
                       </code>
-                      {rule.excludePattern && (
+                      {rule.excludePattern && rule.matchType !== "exact" && (
                         <span className="text-muted-foreground/60">
                           excludes:{" "}
                           <code className="font-mono text-[11px]">

@@ -5,6 +5,7 @@ import { z } from "zod";
 
 const CreateRuleSchema = z.object({
   name: z.string().min(1),
+  matchType: z.enum(["contains", "exact"]).default("contains"),
   pattern: z.string().min(1),
   excludePattern: z.string().optional(),
   eventType: z.nativeEnum(EventType),

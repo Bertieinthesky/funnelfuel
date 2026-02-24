@@ -22,11 +22,22 @@ interface MatchUrlRulesArgs {
   variantId?: string | null;
 }
 
-function testPattern(url: string, path: string, pattern: string): boolean {
+function testGlob(url: string, path: string, pattern: string): boolean {
   return (
     micromatch.isMatch(url, pattern, { nocase: true }) ||
     micromatch.isMatch(path, pattern, { nocase: true })
   );
+}
+
+function testExact(url: string, path: string, pattern: string): boolean {
+  const p = pattern.toLowerCase();
+  return url.toLowerCase() === p || path.toLowerCase() === p;
+}
+
+function testRule(url: string, path: string, pattern: string, matchType: string): boolean {
+  return matchType === "exact"
+    ? testExact(url, path, pattern)
+    : testGlob(url, path, pattern);
 }
 
 export async function matchAndFireUrlRules({
@@ -45,9 +56,9 @@ export async function matchAndFireUrlRules({
 
   const matched = rules.filter((rule) => {
     // Must match include pattern
-    if (!testPattern(url, path, rule.pattern)) return false;
-    // Must NOT match exclude pattern
-    if (rule.excludePattern && testPattern(url, path, rule.excludePattern)) return false;
+    if (!testRule(url, path, rule.pattern, rule.matchType)) return false;
+    // Must NOT match exclude pattern (only applies to contains/glob mode)
+    if (rule.excludePattern && rule.matchType !== "exact" && testGlob(url, path, rule.excludePattern)) return false;
     return true;
   });
 
@@ -99,7 +110,7 @@ export function urlMatchesFunnelStep(
   pattern: string,
   excludePattern?: string | null
 ): boolean {
-  if (!testPattern(url, path, pattern)) return false;
-  if (excludePattern && testPattern(url, path, excludePattern)) return false;
+  if (!testGlob(url, path, pattern)) return false;
+  if (excludePattern && testGlob(url, path, excludePattern)) return false;
   return true;
 }
