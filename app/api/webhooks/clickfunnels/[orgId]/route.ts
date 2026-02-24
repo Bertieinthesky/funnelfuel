@@ -2,17 +2,14 @@
 // Handles form submissions from ClickFunnels Classic and CF 2.0.
 //
 // Setup in ClickFunnels:
-//   Classic: Funnel → Settings → Integrations → Webhook → add URL
+//   Classic: Funnel → Step Settings → Integrations → Webhook → add URL
 //   2.0:     Workspace → Settings → Webhooks → add URL
 //
 // Webhook URL format:
 //   https://funnelfuel.vercel.app/api/webhooks/clickfunnels/YOUR_ORG_ID
-//
-// CF Classic sends form data as application/x-www-form-urlencoded.
-// CF 2.0 sends JSON with a contact object.
-// Both are handled below.
 
 import { NextRequest, NextResponse } from "next/server";
+import { waitUntil } from "@vercel/functions";
 import { db } from "@/lib/db";
 import { stitchIdentity } from "@/lib/identity/stitch";
 import { toJson } from "@/lib/json";
@@ -42,21 +39,39 @@ export async function POST(
 ) {
   const { orgId: organizationId } = await params;
 
-  const org = await db.organization.findUnique({
-    where: { id: organizationId },
-    select: { id: true },
-  });
-  if (!org) {
-    return NextResponse.json({ error: "Unknown orgId" }, { status: 400 });
+  // Read the body eagerly — req is not readable after response is sent
+  const contentType = req.headers.get("content-type") ?? "";
+  let rawBody: string;
+  try {
+    rawBody = await req.text();
+  } catch {
+    return NextResponse.json({ error: "Invalid payload" }, { status: 400 });
   }
 
-  const contentType = req.headers.get("content-type") ?? "";
-  let fields: Record<string, string> = {};
+  // Respond immediately so CF doesn't time out during verification
+  // All DB work runs via waitUntil after the response is sent
+  waitUntil(processWebhook(organizationId, contentType, rawBody));
 
+  return NextResponse.json({ received: true });
+}
+
+async function processWebhook(
+  organizationId: string,
+  contentType: string,
+  rawBody: string
+) {
   try {
+    const org = await db.organization.findUnique({
+      where: { id: organizationId },
+      select: { id: true },
+    });
+    if (!org) return;
+
+    let fields: Record<string, string> = {};
+
     if (contentType.includes("application/json")) {
-      // CF 2.0 JSON format
-      const json = await req.json() as Record<string, unknown>;
+      // CF Classic and CF 2.0 JSON format
+      const json = JSON.parse(rawBody) as Record<string, unknown>;
       const contact = (json.contact ?? json) as Record<string, unknown>;
       fields = {
         email:      String(contact.email      ?? json.email      ?? ""),
@@ -68,34 +83,26 @@ export async function POST(
       };
     } else {
       // CF Classic urlencoded format
-      const text = await req.text();
-      const params = new URLSearchParams(text);
+      const p = new URLSearchParams(rawBody);
       fields = {
-        email:     params.get("email")      ?? params.get("inf_field_Email")     ?? "",
-        phone:     params.get("phone")      ?? params.get("inf_field_Phone1")    ?? "",
-        firstName: params.get("first_name") ?? params.get("inf_field_FirstName") ?? params.get("name")?.split(" ")[0] ?? "",
-        lastName:  params.get("last_name")  ?? params.get("inf_field_LastName")  ?? params.get("name")?.split(" ").slice(1).join(" ") ?? "",
-        id:        params.get("contact_id") ?? params.get("submission_id")       ?? "",
-        pageUrl:   params.get("page_url")   ?? params.get("funnel_step_url")     ?? "",
+        email:     p.get("email")      ?? p.get("inf_field_Email")     ?? "",
+        phone:     p.get("phone")      ?? p.get("inf_field_Phone1")    ?? "",
+        firstName: p.get("first_name") ?? p.get("inf_field_FirstName") ?? p.get("name")?.split(" ")[0] ?? "",
+        lastName:  p.get("last_name")  ?? p.get("inf_field_LastName")  ?? p.get("name")?.split(" ").slice(1).join(" ") ?? "",
+        id:        p.get("contact_id") ?? p.get("submission_id")       ?? "",
+        pageUrl:   p.get("page_url")   ?? p.get("funnel_step_url")     ?? "",
       };
     }
-  } catch {
-    return NextResponse.json({ error: "Invalid payload" }, { status: 400 });
-  }
 
-  const contact = sanitizeContact({
-    email:     fields.email     || undefined,
-    phone:     fields.phone     || undefined,
-    firstName: fields.firstName || undefined,
-    lastName:  fields.lastName  || undefined,
-  });
+    const contact = sanitizeContact({
+      email:     fields.email     || undefined,
+      phone:     fields.phone     || undefined,
+      firstName: fields.firstName || undefined,
+      lastName:  fields.lastName  || undefined,
+    });
 
-  if (!contact.email && !contact.phone) {
-    // No identifiable data — still return 200 so CF doesn't retry forever
-    return NextResponse.json({ received: true, skipped: "no email or phone" });
-  }
+    if (!contact.email && !contact.phone) return;
 
-  try {
     const { contactId } = await stitchIdentity(
       organizationId,
       `cf-${fields.id || contact.email}`,
@@ -123,9 +130,7 @@ export async function POST(
       },
     }).catch(() => {}); // unique constraint = already recorded, ignore
 
-    return NextResponse.json({ received: true });
   } catch (err) {
     console.error("[webhook/clickfunnels] Error:", err);
-    return NextResponse.json({ error: "Processing failed" }, { status: 500 });
   }
 }
