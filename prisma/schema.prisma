@@ -139,6 +139,8 @@ model Session {
   userAgent   String?
   country     String?
   fingerprint String?
+  // Ad platform click IDs: { fbclid, gclid, ttclid, ... }
+  adClicks    Json?
 
   firstSeen  DateTime @default(now())
   lastSeen   DateTime @default(now())

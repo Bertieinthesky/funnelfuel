@@ -17,15 +17,21 @@ export const ContactSchema = z.object({
   lastName: z.string().max(100).optional(),
 });
 
+export const AdClicksSchema = z.record(z.string(), z.string()).optional();
+
 export const PixelPayloadSchema = z.object({
   orgKey: z.string().min(1, "orgKey is required"),
   sessionId: z.string().min(1, "sessionId is required"),
   fingerprint: z.string().min(1, "fingerprint is required"),
+  // Contact ID from email click-through stitching (?ff_cid=...)
+  contactId: z.string().optional(),
   type: z.enum(["page_view", "form_submit"]),
   url: z.string().url("url must be a valid URL"),
   path: z.string().min(1),
   referrer: z.string().nullable().optional(),
   utms: UtmsSchema.optional().default({}),
+  // Ad platform click IDs (fbclid, gclid, ttclid, etc.)
+  adClicks: AdClicksSchema,
   data: z
     .object({
       contact: ContactSchema.optional(),

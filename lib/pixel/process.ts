@@ -5,7 +5,7 @@ import { db } from "@/lib/db";
 import { stitchIdentity } from "@/lib/identity/stitch";
 import { matchAndFireUrlRules } from "@/lib/url-rules/match";
 import { toJson } from "@/lib/json";
-import { EventSource, EventType } from "@prisma/client";
+import { EventSource, EventType, Prisma } from "@prisma/client";
 import type { PixelPayload } from "@/lib/schemas/pixel";
 
 export type { PixelPayload };
@@ -40,6 +40,11 @@ export async function processPixelEvent(
     !!existing &&
     now.getTime() - existing.lastSeen.getTime() > THIRTY_MINUTES;
 
+  // Build ad click data for session storage
+  const adClicks = payload.adClicks ?? {};
+  const adClickJson: Prisma.InputJsonValue | undefined =
+    Object.keys(adClicks).length ? { ...adClicks } : undefined;
+
   const session = await db.session.upsert({
     where: { sessionKey: payload.sessionId },
     create: {
@@ -58,16 +63,34 @@ export async function processPixelEvent(
       firstSeen: now,
       lastSeen: now,
       visitCount: 1,
+      ...(adClickJson ? { adClicks: adClickJson } : {}),
     },
     update: {
       lastSeen: now,
       fingerprint: payload.fingerprint,
       // Increment visitCount when visitor returns after 30-min gap
       ...(isNewVisit ? { visitCount: { increment: 1 } } : {}),
+      // Merge ad clicks — don't overwrite existing ones (first-touch wins)
+      ...(adClickJson && !existing ? { adClicks: adClickJson } : {}),
     },
   });
 
   let contactId: string | null = session.contactId;
+
+  // 2b. ff_cid click-through stitching: link session to known contact
+  if (payload.contactId && !contactId) {
+    const knownContact = await db.contact.findFirst({
+      where: { id: payload.contactId, organizationId },
+      select: { id: true },
+    });
+    if (knownContact) {
+      contactId = knownContact.id;
+      await db.session.update({
+        where: { id: session.id },
+        data: { contactId },
+      });
+    }
+  }
 
   // 3. Handle form_submit — identity stitching
   if (payload.type === "form_submit" && payload.data?.contact) {

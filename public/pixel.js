@@ -16,6 +16,8 @@
   var ENDPOINT = "https://app.funnelfuel.ai/api/pixel";
   var COOKIE_NAME = "_ff_sid";
   var STORAGE_KEY = "_ff_utm";
+  var ADCLICK_KEY = "_ff_adc";
+  var CID_COOKIE  = "_ff_cid";
   var COOKIE_DAYS = 365;
 
   // ── Bootstrap ────────────────────────────────────────────────────────────────
@@ -118,6 +120,73 @@
     var stored = getStoredUtms();
     var current = parseUtms();
     return Object.assign({}, stored, current); // current-page UTMs win if present
+  }
+
+  // ── Contact ID from email click-through (ff_cid=CONTACT_ID) ──────────────────
+  // When a known contact clicks an email link containing ?ff_cid=..., the pixel
+  // stores it in a cookie so every subsequent event on this browser is linked to
+  // that contact — even if they never fill out a form on this device.
+  function captureContactId() {
+    var params = new URLSearchParams(window.location.search);
+    var cid = params.get("ff_cid");
+    if (cid) {
+      setCookie(CID_COOKIE, cid, COOKIE_DAYS);
+      log("Contact ID captured from URL:", cid);
+    }
+    return cid || getCookie(CID_COOKIE) || null;
+  }
+
+  // ── Ad Click Parameters ───────────────────────────────────────────────────────
+  // Captures platform click IDs (fbclid, gclid, ttclid, etc.) on first visit.
+  // Stored in localStorage so they survive across pages within the session.
+  var AD_CLICK_PARAMS = [
+    "fbclid",       // Facebook / Meta
+    "gclid",        // Google Ads
+    "gbraid",       // Google Ads (iOS privacy)
+    "wbraid",       // Google Ads (web-to-app)
+    "ttclid",       // TikTok
+    "li_fat_id",    // LinkedIn
+    "msclkid",      // Microsoft / Bing
+    "twclid",       // Twitter / X
+    "sccid",        // Snapchat
+    "irclickid",    // Impact / affiliates
+    "ScCid",        // Snapchat (alternate)
+    "epik",         // Pinterest
+    "rdt_cid",      // Reddit
+    // Hyros-compatible ad tracking params
+    "h_ad_id",      // Hyros ad ID (cross-platform)
+    "fbc_id",       // Hyros Facebook adset ID
+    "gc_id",        // Hyros Google campaign ID
+    "ttc_id",       // Hyros TikTok ad ID
+    "bng_id",       // Hyros Bing ad group ID
+    "pnt_id",       // Hyros Pinterest ad group ID
+    "rdt_id",       // Hyros Reddit ad group ID
+  ];
+
+  function captureAdClicks() {
+    var params = new URLSearchParams(window.location.search);
+    var clicks = {};
+    AD_CLICK_PARAMS.forEach(function (key) {
+      var val = params.get(key);
+      if (val) clicks[key] = val;
+    });
+    if (Object.keys(clicks).length) {
+      try {
+        // Merge with any previously stored clicks (first-touch wins per param)
+        var stored = JSON.parse(localStorage.getItem(ADCLICK_KEY) || "{}");
+        var merged = Object.assign({}, clicks, stored); // stored wins = first-touch
+        localStorage.setItem(ADCLICK_KEY, JSON.stringify(merged));
+        log("Ad click params captured:", JSON.stringify(clicks));
+      } catch (e) {}
+    }
+  }
+
+  function getAdClicks() {
+    try {
+      return JSON.parse(localStorage.getItem(ADCLICK_KEY) || "{}");
+    } catch (e) {
+      return {};
+    }
   }
 
   // ── Pending Contact Bridge (form page → confirmation page) ───────────────────
@@ -489,17 +558,22 @@
   // ── Event Sending ────────────────────────────────────────────────────────────
   var SESSION_ID = getSessionId();
   var FINGERPRINT = getFingerprint();
+  var CONTACT_ID = captureContactId();
+  captureAdClicks();
 
   function send(type, data) {
+    var adClicks = getAdClicks();
     var payload = {
       orgKey: orgKey,
       sessionId: SESSION_ID,
       fingerprint: FINGERPRINT,
+      contactId: CONTACT_ID || undefined,
       type: type,
       url: window.location.href,
       path: window.location.pathname,
       referrer: document.referrer || null,
       utms: getMergedUtms(),
+      adClicks: Object.keys(adClicks).length ? adClicks : undefined,
       data: data || {},
       ts: Date.now(),
     };
