@@ -10,6 +10,7 @@ import {
   GitBranch,
   Users,
   Activity,
+  Settings,
 } from "lucide-react";
 
 const navItems = [
@@ -19,6 +20,7 @@ const navItems = [
   { label: "Funnels", icon: Globe, path: "/funnels" },
   { label: "Split Tests", icon: GitBranch, path: "/split-tests" },
   { label: "Contacts", icon: Users, path: "/contacts" },
+  { label: "Setup", icon: Settings, path: "/setup" },
 ];
 
 export function Sidebar({ orgId, orgName }: { orgId: string; orgName: string }) {
