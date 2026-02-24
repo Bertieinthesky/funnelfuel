@@ -354,26 +354,100 @@
   }
 
   // Fallback for builders with no <form> element (ClickFunnels Classic)
+  // Scans ALL visible inputs using name, type, placeholder, id, and value pattern —
+  // matching the same multi-signal approach Hyros uses.
   function captureInputsFromPage() {
     log("No form element found — scanning page inputs (CF Classic mode)");
-    var map = {};
-    document.querySelectorAll("input[name], select[name], textarea[name]").forEach(function(input) {
-      if (input.name && map[input.name] === undefined) {
-        map[input.name] = input.value || "";
+    var result = {};
+
+    var inputs = document.querySelectorAll(
+      "input:not([type=hidden]):not([type=submit]):not([type=button]):not([type=checkbox]):not([type=radio]):not([type=file]), textarea"
+    );
+
+    if (DEBUG) {
+      var dbg = [];
+      inputs.forEach(function(i) {
+        dbg.push("[type=" + (i.type||"") + " name=" + (i.name||"") + " placeholder=" + (i.placeholder||"") + "]");
+      });
+      log("All visible inputs:", dbg.join(", ") || "(none)");
+    }
+
+    inputs.forEach(function(input) {
+      var name        = (input.name        || "").toLowerCase();
+      var type        = (input.type        || "").toLowerCase();
+      var placeholder = (input.placeholder || "").toLowerCase();
+      var id          = (input.id          || "").toLowerCase();
+      var value       = (input.value       || "").trim();
+      if (!value) return;
+
+      // ── Email ──
+      if (!result.email) {
+        var isEmail =
+          type === "email" ||
+          name.indexOf("email") !== -1 ||
+          id.indexOf("email") !== -1 ||
+          placeholder.indexOf("email") !== -1 ||
+          EMAIL_PATTERN.test(value);
+        if (isEmail && EMAIL_PATTERN.test(value)) {
+          result.email = value;
+          log("Email found via", type === "email" ? "type" : placeholder.indexOf("email") !== -1 ? "placeholder" : name.indexOf("email") !== -1 ? "name" : "pattern", ":", value);
+          return;
+        }
+      }
+
+      // ── Phone ──
+      if (!result.phone) {
+        var isPhone =
+          type === "tel" ||
+          name.indexOf("phone") !== -1 || name.indexOf("mobile") !== -1 ||
+          id.indexOf("phone") !== -1 || id.indexOf("mobile") !== -1 ||
+          placeholder.indexOf("phone") !== -1 || placeholder.indexOf("mobile") !== -1;
+        if (isPhone && value.replace(/\D/g, "").length >= 7) {
+          result.phone = value;
+          log("Phone found:", value);
+          return;
+        }
+      }
+
+      // ── First name ──
+      if (!result.firstName) {
+        var isFirst =
+          name === "first_name" || name === "firstname" || name === "fname" ||
+          id.indexOf("first_name") !== -1 || id.indexOf("firstname") !== -1 ||
+          placeholder === "first name" || placeholder === "first";
+        if (isFirst) { result.firstName = value; return; }
+      }
+
+      // ── Last name ──
+      if (!result.lastName) {
+        var isLast =
+          name === "last_name" || name === "lastname" || name === "lname" ||
+          id.indexOf("last_name") !== -1 || id.indexOf("lastname") !== -1 ||
+          placeholder === "last name" || placeholder === "last";
+        if (isLast) { result.lastName = value; return; }
+      }
+
+      // ── Full name fallback → split into first/last ──
+      if (!result.firstName) {
+        var isFull =
+          name === "name" || name === "full_name" || name === "fullname" ||
+          id.indexOf("full_name") !== -1 ||
+          placeholder === "name" || placeholder === "full name" || placeholder === "your name";
+        if (isFull) {
+          var parts = value.split(/\s+/);
+          result.firstName = parts[0];
+          if (parts.length > 1) result.lastName = parts.slice(1).join(" ");
+          return;
+        }
       }
     });
-    log("Page inputs found:", Object.keys(map).join(", ") || "(none)");
-    var fakeFormData = {
-      get: function(name) { return map[name] !== undefined ? map[name] : null; },
-      forEach: function(cb) { for (var k in map) cb(map[k], k); }
-    };
-    var contact = extractFromFormData(fakeFormData);
-    log("Extracted contact:", JSON.stringify(contact));
-    if (contact.email || contact.phone) {
-      savePendingContact(contact, window.location.href, window.location.pathname);
+
+    log("Captured from page:", JSON.stringify(result));
+    if (result.email || result.phone) {
+      savePendingContact(result, window.location.href, window.location.pathname);
       log("Sending form_submit (no-form mode) →", ENDPOINT);
       send("form_submit", {
-        contact: contact,
+        contact: result,
         formAction: window.location.href,
         formId: null,
       });
