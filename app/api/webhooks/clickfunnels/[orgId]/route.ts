@@ -6,7 +6,7 @@
 //   2.0:     Workspace → Settings → Webhooks → add URL
 //
 // Webhook URL format:
-//   https://funnelfuel.vercel.app/api/webhooks/clickfunnels/YOUR_ORG_ID
+//   https://tracking.funnelfuel.ai/api/webhooks/clickfunnels/YOUR_ORG_ID
 
 import { NextRequest, NextResponse } from "next/server";
 import { waitUntil } from "@vercel/functions";
