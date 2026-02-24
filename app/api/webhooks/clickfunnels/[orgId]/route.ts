@@ -20,9 +20,20 @@ import { deterministicId } from "@/lib/idempotency";
 import { sanitizeContact } from "@/lib/schemas/webhooks";
 import { EventSource, EventType } from "@prisma/client";
 
-// CF pings the URL with GET when you save the webhook to verify it's reachable
+// CF pings the URL with GET (and sometimes OPTIONS) to verify it's reachable
 export async function GET() {
   return NextResponse.json({ ok: true });
+}
+
+export async function OPTIONS() {
+  return new NextResponse(null, {
+    status: 200,
+    headers: {
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+      "Access-Control-Allow-Headers": "Content-Type",
+    },
+  });
 }
 
 export async function POST(
