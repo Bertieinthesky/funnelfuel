@@ -77,13 +77,17 @@ export async function stitchIdentity(
     }
 
     if (existingContactId) {
+      // Only overwrite PII fields for high-confidence matches (email/phone proof).
+      // Fingerprint matches are probabilistic — don't replace existing data in case
+      // it's a different person on a shared device.
+      const highConfidence = confidence >= 80;
       await tx.contact.update({
         where: { id: existingContactId },
         data: {
-          ...(email ? { email } : {}),
-          ...(phone ? { phone } : {}),
-          ...(firstName ? { firstName } : {}),
-          ...(lastName ? { lastName } : {}),
+          ...(email && highConfidence ? { email } : {}),
+          ...(phone && highConfidence ? { phone } : {}),
+          ...(firstName && highConfidence ? { firstName } : {}),
+          ...(lastName && highConfidence ? { lastName } : {}),
         },
       });
       await linkSessionToContact(tx, sessionKey, existingContactId, fingerprint);
