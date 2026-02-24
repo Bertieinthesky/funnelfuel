@@ -11,12 +11,21 @@ export default async function DashboardLayout({
 }) {
   const { orgId } = await params;
 
-  const org = await db.organization.findUnique({
-    where: { id: orgId },
-    select: { id: true, name: true },
-  });
+  let org;
+  try {
+    org = await db.organization.findUnique({
+      where: { id: orgId },
+      select: { id: true, name: true },
+    });
+  } catch (err) {
+    console.error("[dashboard] DB error looking up org:", err);
+    notFound();
+  }
 
-  if (!org) notFound();
+  if (!org) {
+    console.error("[dashboard] Org not found for id:", orgId);
+    notFound();
+  }
 
   return (
     <div className="flex h-screen overflow-hidden bg-bg">
