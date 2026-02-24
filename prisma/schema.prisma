@@ -1,0 +1,465 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// MULTI-TENANCY
+// ─────────────────────────────────────────────────────────────────────────────
+
+model Organization {
+  id        String   @id @default(cuid())
+  name      String
+  domain    String?
+  // Public key embedded in the pixel script tag — not secret
+  publicKey String   @unique @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  users       User[]
+  contacts    Contact[]
+  funnels     Funnel[]
+  urlRules    UrlRule[]
+  experiments Experiment[]
+  alerts      Alert[]
+
+  @@map("organizations")
+}
+
+model User {
+  id             String       @id @default(cuid())
+  email          String       @unique
+  name           String?
+  role           UserRole     @default(MEMBER)
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@index([organizationId])
+  @@map("users")
+}
+
+enum UserRole {
+  OWNER
+  ADMIN
+  MEMBER
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// IDENTITY & CONTACTS
+// ─────────────────────────────────────────────────────────────────────────────
+
+model Contact {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  email     String?
+  phone     String?
+  firstName String?
+  lastName  String?
+
+  // Lead quality (set by form field values or URL rules)
+  leadQuality LeadQuality @default(UNKNOWN)
+  tags        String[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  identitySignals       IdentitySignal[]
+  sessions              Session[]
+  events                Event[]
+  payments              Payment[]
+  experimentAssignments ExperimentAssignment[]
+
+  @@unique([organizationId, email])
+  @@index([organizationId])
+  @@map("contacts")
+}
+
+enum LeadQuality {
+  UNKNOWN
+  LOW
+  MEDIUM
+  HIGH
+}
+
+model IdentitySignal {
+  id        String       @id @default(cuid())
+  contactId String
+  contact   Contact      @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  type      IdentityType
+  // value is hashed for email/phone (SHA-256 hex), raw for fingerprint/cookie
+  value     String
+  // plaintext stored separately for display — can be cleared for privacy
+  rawValue  String?
+  confidence Int         @default(50)
+  firstSeen DateTime     @default(now())
+  lastSeen  DateTime     @default(now())
+
+  @@unique([contactId, type, value])
+  // Fast lookup when stitching: "do we know this email hash?"
+  @@index([type, value])
+  @@map("identity_signals")
+}
+
+enum IdentityType {
+  EMAIL
+  PHONE
+  FINGERPRINT
+  COOKIE
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SESSIONS & PAGE VIEWS
+// ─────────────────────────────────────────────────────────────────────────────
+
+model Session {
+  id          String   @id @default(cuid())
+  // sessionKey is the first-party cookie value set by the pixel
+  sessionKey  String   @unique
+  contactId   String?
+  contact     Contact? @relation(fields: [contactId], references: [id])
+  organizationId String
+
+  utmSource   String?
+  utmMedium   String?
+  utmCampaign String?
+  utmContent  String?
+  utmTerm     String?
+  referrer    String?
+  landingPage String?
+  ip          String?
+  userAgent   String?
+  country     String?
+  fingerprint String?
+
+  firstSeen  DateTime @default(now())
+  lastSeen   DateTime @default(now())
+  // Increments each time this session resumes after 30+ minutes of inactivity.
+  // visitCount > 1 means the same person returned in a new browsing session.
+  visitCount Int      @default(1)
+
+  pageViews PageView[]
+  events    Event[]
+
+  @@index([sessionKey])
+  @@index([contactId])
+  @@index([fingerprint])
+  @@index([organizationId])
+  @@map("sessions")
+}
+
+model PageView {
+  id        String   @id @default(cuid())
+  sessionId String
+  session   Session  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  contactId String?
+  url       String
+  path      String
+  title     String?
+  timestamp DateTime @default(now())
+
+  @@index([sessionId])
+  @@index([contactId])
+  @@index([path])
+  @@index([timestamp])
+  @@map("page_views")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// EVENTS (the core ledger)
+// ─────────────────────────────────────────────────────────────────────────────
+
+model Event {
+  id             String      @id @default(cuid())
+  organizationId String
+  contactId      String?
+  contact        Contact?    @relation(fields: [contactId], references: [id])
+  sessionId      String?
+  session        Session?    @relation(fields: [sessionId], references: [id])
+  type           EventType
+  data           Json?
+
+  // 0-100 confidence score based on corroborating signals
+  confidence Int         @default(50)
+  source     EventSource
+
+  variantId    String?
+  variant      Variant?    @relation(fields: [variantId], references: [id])
+  funnelId     String?
+  funnel       Funnel?     @relation(fields: [funnelId], references: [id])
+  funnelStepId String?
+  funnelStep   FunnelStep? @relation(fields: [funnelStepId], references: [id])
+
+  // Used for idempotency — prevents duplicate webhook events from being recorded twice
+  externalId String?
+
+  timestamp DateTime @default(now())
+
+  // Dedup: same org + source + externalId = same event
+  @@unique([organizationId, source, externalId])
+  @@index([organizationId, type])
+  @@index([contactId])
+  @@index([funnelId])
+  @@index([funnelStepId])
+  @@index([variantId])
+  @@index([timestamp])
+  @@map("events")
+}
+
+enum EventType {
+  PAGE_VIEW
+  FORM_SUBMIT
+  OPT_IN
+  CHECKOUT_VIEW
+  PURCHASE
+  BOOKING
+  BOOKING_CONFIRMED
+  APPLICATION_SUBMIT
+  WEBINAR_REGISTER
+  WEBINAR_ATTEND
+  WEBINAR_CTA_CLICK
+  URL_RULE_MATCH
+  CUSTOM
+}
+
+enum EventSource {
+  PIXEL
+  STRIPE_WEBHOOK
+  WHOP_WEBHOOK
+  GHL_WEBHOOK
+  CALENDLY_WEBHOOK
+  CAL_WEBHOOK
+  ZOOM_WEBHOOK
+  GOTOWEBINAR_WEBHOOK
+  WEBINARJAM_WEBHOOK
+  TYPEFORM_WEBHOOK
+  JOTFORM_WEBHOOK
+  SCHEDULEONCE_WEBHOOK
+  ZAPIER_WEBHOOK
+  MANUAL
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// REVENUE
+// ─────────────────────────────────────────────────────────────────────────────
+
+model Payment {
+  id          String   @id @default(cuid())
+  contactId   String?
+  contact     Contact? @relation(fields: [contactId], references: [id])
+  organizationId String
+
+  amountCents Int      // Store in cents to avoid float precision issues
+  currency    String   @default("usd")
+  processor   String   // "stripe" | "whop"
+  externalId  String   @unique
+  productId   String?
+  productName String?
+  status      String   // "succeeded" | "refunded" | "disputed"
+
+  variantId String?
+  funnelId  String?
+
+  createdAt DateTime @default(now())
+
+  @@index([contactId])
+  @@index([organizationId])
+  @@index([variantId])
+  @@map("payments")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// FUNNELS
+// ─────────────────────────────────────────────────────────────────────────────
+
+model Funnel {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  name           String
+  type           FunnelType
+  isActive       Boolean      @default(true)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  steps       FunnelStep[]
+  events      Event[]
+  experiments Experiment[]
+  alerts      Alert[]
+
+  @@index([organizationId])
+  @@map("funnels")
+}
+
+enum FunnelType {
+  LOW_TICKET
+  WEBINAR
+  VSL_APPLICATION
+  CUSTOM
+}
+
+model FunnelStep {
+  id       String @id @default(cuid())
+  funnelId String
+  funnel   Funnel @relation(fields: [funnelId], references: [id], onDelete: Cascade)
+
+  name       String
+  type       FunnelStepType
+  // URL glob pattern — e.g. "*/thank-you*" or "*/checkout*"
+  urlPattern String?
+  order      Int
+  createdAt  DateTime       @default(now())
+
+  events Event[]
+
+  @@index([funnelId])
+  @@map("funnel_steps")
+}
+
+enum FunnelStepType {
+  LANDING_PAGE
+  OPT_IN
+  CHECKOUT_VIEW
+  PURCHASE
+  BOOKING
+  BOOKING_CONFIRMED
+  APPLICATION_SUBMIT
+  WEBINAR_REGISTER
+  WEBINAR_ATTEND
+  WEBINAR_CTA_CLICK
+  URL_RULE
+  CUSTOM
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// URL RULES
+// ─────────────────────────────────────────────────────────────────────────────
+
+model UrlRule {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  name           String
+  // Glob pattern matched against the full URL path, e.g. "**/booking-confirmed*"
+  pattern        String
+  // Optional: if the URL also matches this pattern, skip the rule entirely.
+  // Use this to prevent /thank-you* from also firing on /thank-you-variant.
+  // e.g. excludePattern = "**/thank-you-v*"
+  excludePattern String?
+  eventType      EventType
+  tags           String[]
+  funnelStepId   String?
+  isActive       Boolean      @default(true)
+  createdAt      DateTime     @default(now())
+
+  @@index([organizationId])
+  @@map("url_rules")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SPLIT TESTS
+// ─────────────────────────────────────────────────────────────────────────────
+
+model Experiment {
+  id             String           @id @default(cuid())
+  organizationId String
+  organization   Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  funnelId       String?
+  funnel         Funnel?          @relation(fields: [funnelId], references: [id])
+  name           String
+  // The slug used in the split URL: /go/[slug]
+  slug           String           @unique
+  status         ExperimentStatus @default(DRAFT)
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  variants    Variant[]
+  assignments ExperimentAssignment[]
+
+  @@index([organizationId])
+  @@map("experiments")
+}
+
+enum ExperimentStatus {
+  DRAFT
+  ACTIVE
+  PAUSED
+  COMPLETED
+}
+
+model Variant {
+  id           String     @id @default(cuid())
+  experimentId String
+  experiment   Experiment @relation(fields: [experimentId], references: [id], onDelete: Cascade)
+  name         String
+  // The URL this variant redirects to
+  url          String
+  // Traffic weight as a percentage — all variants in an experiment must sum to 100
+  weight       Float      @default(50)
+  createdAt    DateTime   @default(now())
+
+  assignments ExperimentAssignment[]
+  events      Event[]
+
+  @@index([experimentId])
+  @@map("variants")
+}
+
+model ExperimentAssignment {
+  id           String     @id @default(cuid())
+  // sessionKey is always stored — even for anonymous visitors before identity stitching
+  sessionKey   String
+  contactId    String?
+  contact      Contact?   @relation(fields: [contactId], references: [id])
+  experimentId String
+  experiment   Experiment @relation(fields: [experimentId], references: [id], onDelete: Cascade)
+  variantId    String
+  variant      Variant    @relation(fields: [variantId], references: [id])
+  assignedAt   DateTime   @default(now())
+
+  @@unique([sessionKey, experimentId])
+  @@index([contactId, experimentId])
+  @@map("experiment_assignments")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// DATA HEALTH ALERTS
+// ─────────────────────────────────────────────────────────────────────────────
+
+model Alert {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  funnelId       String?
+  funnel         Funnel?      @relation(fields: [funnelId], references: [id])
+  funnelStepId   String?
+  name           String
+  type           AlertType
+  // Trigger alert if no events received within this many hours
+  thresholdHours Int          @default(24)
+  isActive       Boolean      @default(true)
+  // Last time this alert fired
+  lastFiredAt    DateTime?
+  // Last time a qualifying event was seen — used to determine if threshold is exceeded
+  lastEventAt    DateTime?
+  createdAt      DateTime     @default(now())
+
+  @@index([organizationId])
+  @@map("alerts")
+}
+
+enum AlertType {
+  NO_EVENTS
+  NO_OPT_INS
+  NO_PURCHASES
+  NO_BOOKINGS
+  NO_PAGE_VIEWS
+}
