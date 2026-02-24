@@ -305,14 +305,65 @@ export async function getSplitTestOverview(orgId: string, range: DateRange) {
 // CONTACTS LIST
 // ─────────────────────────────────────────────────────────────────────────────
 
+export interface ContactFilters {
+  search?: string;
+  source?: string;
+  title?: string;
+  eventType?: EventType;
+  leadQuality?: string;
+  dateFrom?: Date;
+  dateTo?: Date;
+}
+
 export async function getContacts(
   orgId: string,
   page: number = 1,
-  limit: number = 50
+  limit: number = 50,
+  filters: ContactFilters = {}
 ) {
+  // Build the where clause for contacts
+  const where: Record<string, unknown> = { organizationId: orgId };
+
+  // Search by name, email, or phone
+  if (filters.search) {
+    const term = filters.search;
+    where.OR = [
+      { email: { contains: term, mode: "insensitive" } },
+      { firstName: { contains: term, mode: "insensitive" } },
+      { lastName: { contains: term, mode: "insensitive" } },
+      { phone: { contains: term } },
+    ];
+  }
+
+  if (filters.leadQuality) {
+    where.leadQuality = filters.leadQuality;
+  }
+
+  if (filters.dateFrom || filters.dateTo) {
+    where.createdAt = {
+      ...(filters.dateFrom ? { gte: filters.dateFrom } : {}),
+      ...(filters.dateTo ? { lte: filters.dateTo } : {}),
+    };
+  }
+
+  // Source/title filter: contacts who have a session with that source/title
+  if (filters.source || filters.title) {
+    where.sessions = {
+      some: {
+        ...(filters.source ? { ffSource: filters.source } : {}),
+        ...(filters.title ? { ffTitle: filters.title } : {}),
+      },
+    };
+  }
+
+  // Event type filter: contacts who have an event of that type
+  if (filters.eventType) {
+    where.events = { some: { type: filters.eventType } };
+  }
+
   const [contacts, total] = await Promise.all([
     db.contact.findMany({
-      where: { organizationId: orgId },
+      where,
       select: {
         id: true,
         email: true,
@@ -320,6 +371,7 @@ export async function getContacts(
         firstName: true,
         lastName: true,
         leadQuality: true,
+        tags: true,
         createdAt: true,
         _count: { select: { events: true, sessions: true, payments: true } },
       },
@@ -327,8 +379,213 @@ export async function getContacts(
       skip: (page - 1) * limit,
       take: limit,
     }),
-    db.contact.count({ where: { organizationId: orgId } }),
+    db.contact.count({ where }),
   ]);
 
   return { contacts, total, page, totalPages: Math.ceil(total / limit) };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CONTACT DETAIL + JOURNEY
+// ─────────────────────────────────────────────────────────────────────────────
+
+export async function getContactDetail(orgId: string, contactId: string) {
+  const contact = await db.contact.findFirst({
+    where: { id: contactId, organizationId: orgId },
+    include: {
+      identitySignals: {
+        select: { type: true, rawValue: true, confidence: true, firstSeen: true },
+        orderBy: { firstSeen: "desc" },
+      },
+      _count: { select: { events: true, sessions: true, payments: true } },
+    },
+  });
+
+  if (!contact) return null;
+
+  // Get total revenue
+  const revenue = await db.payment.aggregate({
+    where: { contactId, organizationId: orgId, status: "succeeded" },
+    _sum: { amountCents: true },
+    _count: true,
+  });
+
+  return {
+    ...contact,
+    totalRevenue: (revenue._sum.amountCents ?? 0) / 100,
+    totalPayments: revenue._count,
+  };
+}
+
+export async function getContactJourney(orgId: string, contactId: string) {
+  // Fetch all journey data in parallel
+  const [sessions, events, pageViews, payments] = await Promise.all([
+    db.session.findMany({
+      where: { contactId, organizationId: orgId },
+      select: {
+        id: true,
+        sessionKey: true,
+        ffSource: true,
+        ffTitle: true,
+        utmSource: true,
+        utmMedium: true,
+        utmCampaign: true,
+        referrer: true,
+        landingPage: true,
+        ip: true,
+        userAgent: true,
+        adClicks: true,
+        firstSeen: true,
+        lastSeen: true,
+        visitCount: true,
+      },
+      orderBy: { firstSeen: "desc" },
+    }),
+    db.event.findMany({
+      where: { contactId, organizationId: orgId },
+      select: {
+        id: true,
+        type: true,
+        source: true,
+        confidence: true,
+        data: true,
+        timestamp: true,
+        sessionId: true,
+        variant: { select: { name: true, experiment: { select: { name: true } } } },
+        funnelStep: { select: { name: true, funnel: { select: { name: true } } } },
+      },
+      orderBy: { timestamp: "desc" },
+    }),
+    db.pageView.findMany({
+      where: { contactId },
+      select: {
+        id: true,
+        url: true,
+        path: true,
+        title: true,
+        timestamp: true,
+        sessionId: true,
+      },
+      orderBy: { timestamp: "desc" },
+      take: 200,
+    }),
+    db.payment.findMany({
+      where: { contactId, organizationId: orgId },
+      select: {
+        id: true,
+        amountCents: true,
+        currency: true,
+        processor: true,
+        productName: true,
+        status: true,
+        createdAt: true,
+      },
+      orderBy: { createdAt: "desc" },
+    }),
+  ]);
+
+  // Build unified timeline
+  type TimelineItem = {
+    id: string;
+    type: "session" | "event" | "page_view" | "payment";
+    timestamp: Date;
+    data: Record<string, unknown>;
+  };
+
+  const timeline: TimelineItem[] = [];
+
+  for (const s of sessions) {
+    timeline.push({
+      id: `session-${s.id}`,
+      type: "session",
+      timestamp: s.firstSeen,
+      data: {
+        sessionId: s.id,
+        source: s.ffSource || s.utmSource || "direct",
+        title: s.ffTitle,
+        medium: s.utmMedium,
+        campaign: s.utmCampaign,
+        referrer: s.referrer,
+        landingPage: s.landingPage,
+        adClicks: s.adClicks,
+        visitCount: s.visitCount,
+      },
+    });
+  }
+
+  for (const e of events) {
+    timeline.push({
+      id: `event-${e.id}`,
+      type: "event",
+      timestamp: e.timestamp,
+      data: {
+        eventType: e.type,
+        source: e.source,
+        confidence: e.confidence,
+        details: e.data,
+        variant: e.variant?.name,
+        experiment: e.variant?.experiment?.name,
+        funnelStep: e.funnelStep?.name,
+        funnel: e.funnelStep?.funnel?.name,
+      },
+    });
+  }
+
+  for (const pv of pageViews) {
+    timeline.push({
+      id: `pv-${pv.id}`,
+      type: "page_view",
+      timestamp: pv.timestamp,
+      data: {
+        url: pv.url,
+        path: pv.path,
+        title: pv.title,
+        sessionId: pv.sessionId,
+      },
+    });
+  }
+
+  for (const p of payments) {
+    timeline.push({
+      id: `payment-${p.id}`,
+      type: "payment",
+      timestamp: p.createdAt,
+      data: {
+        amount: p.amountCents / 100,
+        currency: p.currency,
+        processor: p.processor,
+        product: p.productName,
+        status: p.status,
+      },
+    });
+  }
+
+  // Sort by timestamp descending (newest first)
+  timeline.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
+
+  return { sessions, events, pageViews, payments, timeline };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// FILTER OPTIONS (for dropdowns)
+// ─────────────────────────────────────────────────────────────────────────────
+
+export async function getFilterOptions(orgId: string) {
+  const [sources, titles] = await Promise.all([
+    db.session.findMany({
+      where: { organizationId: orgId, ffSource: { not: null } },
+      select: { ffSource: true },
+      distinct: ["ffSource"],
+    }),
+    db.session.findMany({
+      where: { organizationId: orgId, ffTitle: { not: null } },
+      select: { ffTitle: true },
+      distinct: ["ffTitle"],
+    }),
+  ]);
+
+  return {
+    sources: sources.map((s) => s.ffSource!).filter(Boolean),
+    titles: titles.map((t) => t.ffTitle!).filter(Boolean),
+  };
 }

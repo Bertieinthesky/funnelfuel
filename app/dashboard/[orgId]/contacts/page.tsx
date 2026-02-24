@@ -1,6 +1,9 @@
-import { getContacts } from "@/lib/dashboard/queries";
+import { getContacts, getFilterOptions, type ContactFilters } from "@/lib/dashboard/queries";
+import { parseDateRange } from "@/lib/dashboard/date-range";
+import { ContactFilters as ContactFiltersUI } from "@/components/dashboard/contact-filters";
 import { cn } from "@/lib/cn";
 import { formatDistanceToNow } from "date-fns";
+import { EventType } from "@prisma/client";
 import Link from "next/link";
 
 export default async function ContactsPage({
@@ -8,25 +11,52 @@ export default async function ContactsPage({
   searchParams,
 }: {
   params: Promise<{ orgId: string }>;
-  searchParams: Promise<{ page?: string }>;
+  searchParams: Promise<Record<string, string | undefined>>;
 }) {
   const { orgId } = await params;
-  const { page: pageStr } = await searchParams;
-  const page = Math.max(1, parseInt(pageStr ?? "1", 10) || 1);
-  const { contacts, total, totalPages } = await getContacts(orgId, page);
+  const sp = await searchParams;
+  const page = Math.max(1, parseInt(sp.page ?? "1", 10) || 1);
+
+  // Build filters from search params
+  const filters: ContactFilters = {};
+  if (sp.q) filters.search = sp.q;
+  if (sp.source) filters.source = sp.source;
+  if (sp.title) filters.title = sp.title;
+  if (sp.quality) filters.leadQuality = sp.quality;
+  if (sp.eventType && sp.eventType in EventType) {
+    filters.eventType = sp.eventType as EventType;
+  }
+  if (sp.range) {
+    const range = parseDateRange(sp.range);
+    filters.dateFrom = range.from;
+    filters.dateTo = range.to;
+  }
+
+  const [{ contacts, total, totalPages }, filterOptions] = await Promise.all([
+    getContacts(orgId, page, 50, filters),
+    getFilterOptions(orgId),
+  ]);
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-xl font-semibold tracking-tight">Contacts</h1>
         <p className="text-sm text-text-muted">
-          {total.toLocaleString()} total contact{total !== 1 ? "s" : ""}
+          {total.toLocaleString()} contact{total !== 1 ? "s" : ""}
+          {Object.keys(filters).length > 0 ? " matching filters" : " total"}
         </p>
       </div>
 
+      <ContactFiltersUI
+        sources={filterOptions.sources}
+        titles={filterOptions.titles}
+      />
+
       {contacts.length === 0 ? (
         <div className="rounded-lg border border-border bg-surface p-12 text-center text-sm text-text-muted">
-          No contacts yet. Contacts are created when visitors submit forms or complete purchases.
+          {Object.keys(filters).length > 0
+            ? "No contacts match your filters."
+            : "No contacts yet. Contacts are created when visitors submit forms or complete purchases."}
         </div>
       ) : (
         <>
@@ -46,11 +76,11 @@ export default async function ContactsPage({
                   <th className="px-4 py-3 text-center text-xs font-medium text-text-muted">
                     Quality
                   </th>
-                  <th className="px-4 py-3 text-right text-xs font-medium text-text-muted">
-                    Events
+                  <th className="px-4 py-3 text-left text-xs font-medium text-text-muted">
+                    Tags
                   </th>
                   <th className="px-4 py-3 text-right text-xs font-medium text-text-muted">
-                    Sessions
+                    Events
                   </th>
                   <th className="px-4 py-3 text-right text-xs font-medium text-text-muted">
                     Payments
@@ -67,14 +97,16 @@ export default async function ContactsPage({
                     .join(" ");
 
                   return (
-                    <tr
-                      key={contact.id}
-                      className="border-b border-border transition-colors last:border-0 hover:bg-surface-elevated"
-                    >
-                      <td className="px-4 py-3 font-medium">
-                        {name || (
-                          <span className="text-text-dim">Anonymous</span>
-                        )}
+                    <tr key={contact.id}>
+                      <td className="px-4 py-3">
+                        <Link
+                          href={`/dashboard/${orgId}/contacts/${contact.id}`}
+                          className="font-medium text-text transition-colors hover:text-accent"
+                        >
+                          {name || (
+                            <span className="text-text-dim">Anonymous</span>
+                          )}
+                        </Link>
                       </td>
                       <td className="px-4 py-3 text-text-muted">
                         {contact.email ?? "—"}
@@ -99,11 +131,29 @@ export default async function ContactsPage({
                           {contact.leadQuality.toLowerCase()}
                         </span>
                       </td>
-                      <td className="px-4 py-3 text-right tabular-nums text-text-muted">
-                        {contact._count.events}
+                      <td className="px-4 py-3">
+                        {contact.tags.length > 0 ? (
+                          <div className="flex flex-wrap gap-1">
+                            {contact.tags.slice(0, 3).map((tag) => (
+                              <span
+                                key={tag}
+                                className="rounded-full bg-accent-dim px-1.5 py-0.5 text-[10px] text-accent"
+                              >
+                                {tag}
+                              </span>
+                            ))}
+                            {contact.tags.length > 3 && (
+                              <span className="text-[10px] text-text-dim">
+                                +{contact.tags.length - 3}
+                              </span>
+                            )}
+                          </div>
+                        ) : (
+                          <span className="text-text-dim">—</span>
+                        )}
                       </td>
                       <td className="px-4 py-3 text-right tabular-nums text-text-muted">
-                        {contact._count.sessions}
+                        {contact._count.events}
                       </td>
                       <td className="px-4 py-3 text-right tabular-nums text-text-muted">
                         {contact._count.payments}
@@ -125,7 +175,7 @@ export default async function ContactsPage({
             <div className="flex items-center justify-center gap-2">
               {page > 1 && (
                 <Link
-                  href={`?page=${page - 1}`}
+                  href={`?${new URLSearchParams({ ...sp, page: String(page - 1) }).toString()}`}
                   className="rounded-md border border-border bg-surface px-3 py-1.5 text-xs text-text-muted hover:text-text"
                 >
                   Previous
@@ -136,7 +186,7 @@ export default async function ContactsPage({
               </span>
               {page < totalPages && (
                 <Link
-                  href={`?page=${page + 1}`}
+                  href={`?${new URLSearchParams({ ...sp, page: String(page + 1) }).toString()}`}
                   className="rounded-md border border-border bg-surface px-3 py-1.5 text-xs text-text-muted hover:text-text"
                 >
                   Next
