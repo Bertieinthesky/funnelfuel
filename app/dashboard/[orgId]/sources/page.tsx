@@ -2,6 +2,7 @@ import { SourceTable } from "@/components/dashboard/source-table";
 import { DateRangePicker } from "@/components/dashboard/date-range-picker";
 import { parseDateRange } from "@/lib/dashboard/date-range";
 import { getSourceBreakdown } from "@/lib/dashboard/queries";
+import { Card, CardContent } from "@/components/ui/card";
 
 export default async function SourcesPage({
   params,
@@ -15,7 +16,6 @@ export default async function SourcesPage({
   const dateRange = parseDateRange(range ?? null);
   const sources = await getSourceBreakdown(orgId, dateRange);
 
-  // Calculate totals
   const totals = sources.reduce(
     (acc, s) => ({
       visitors: acc.visitors + s.visitors,
@@ -30,8 +30,8 @@ export default async function SourcesPage({
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-semibold tracking-tight">Sources</h1>
-          <p className="text-sm text-text-muted">
+          <h1 className="text-xl font-semibold tracking-tight text-foreground">Sources</h1>
+          <p className="text-sm text-muted-foreground">
             Performance breakdown by traffic source
           </p>
         </div>
@@ -40,28 +40,21 @@ export default async function SourcesPage({
 
       {/* Summary cards */}
       <div className="grid grid-cols-4 gap-3">
-        <div className="rounded-lg border border-border bg-surface p-4">
-          <p className="text-xs text-text-muted">Total Sources</p>
-          <p className="mt-1 text-2xl font-semibold">{sources.length}</p>
-        </div>
-        <div className="rounded-lg border border-border bg-surface p-4">
-          <p className="text-xs text-text-muted">Total Visitors</p>
-          <p className="mt-1 text-2xl font-semibold">
-            {totals.visitors.toLocaleString()}
-          </p>
-        </div>
-        <div className="rounded-lg border border-border bg-surface p-4">
-          <p className="text-xs text-text-muted">Total Leads</p>
-          <p className="mt-1 text-2xl font-semibold">
-            {totals.leads.toLocaleString()}
-          </p>
-        </div>
-        <div className="rounded-lg border border-border bg-surface p-4">
-          <p className="text-xs text-text-muted">Total Revenue</p>
-          <p className="mt-1 text-2xl font-semibold text-green">
-            ${totals.revenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-          </p>
-        </div>
+        {[
+          { label: "Total Sources", value: sources.length.toString() },
+          { label: "Total Visitors", value: totals.visitors.toLocaleString() },
+          { label: "Total Leads", value: totals.leads.toLocaleString() },
+          { label: "Total Revenue", value: `$${totals.revenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, className: "text-green" },
+        ].map((card) => (
+          <Card key={card.label} className="gap-0 border-border py-0">
+            <CardContent className="p-4">
+              <p className="text-xs text-muted-foreground">{card.label}</p>
+              <p className={`mt-1 text-2xl font-semibold ${card.className || "text-foreground"}`}>
+                {card.value}
+              </p>
+            </CardContent>
+          </Card>
+        ))}
       </div>
 
       <SourceTable data={sources} />

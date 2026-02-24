@@ -27,8 +27,8 @@ export default async function SetupPage({
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-xl font-semibold tracking-tight">Setup</h1>
-        <p className="text-sm text-text-muted">
+        <h1 className="text-xl font-semibold tracking-tight text-foreground">Setup</h1>
+        <p className="text-sm text-muted-foreground">
           Configure URL rules, funnels, and tracking settings
         </p>
       </div>

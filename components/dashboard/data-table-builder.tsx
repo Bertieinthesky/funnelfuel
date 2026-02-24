@@ -3,6 +3,25 @@
 import { cn } from "@/lib/cn";
 import { useState } from "react";
 import { Download, Loader2, ArrowUpDown } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableFooter,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 
 const DIMENSIONS = [
   { id: "source", label: "Source" },
@@ -204,276 +223,247 @@ export function DataTableBuilder({
   return (
     <div className="space-y-6">
       {/* Configuration */}
-      <div className="space-y-4 rounded-lg border border-border bg-surface p-4">
-        {/* Row 1: Group By + Date Range */}
-        <div className="flex flex-wrap items-end gap-4">
-          <div>
-            <label className="mb-1 block text-[11px] font-medium text-text-dim">
-              GROUP ROWS BY
-            </label>
-            <select
-              value={groupBy}
-              onChange={(e) => setGroupBy(e.target.value)}
-              className="rounded-md border border-border bg-bg px-3 py-2 text-sm text-text focus:border-accent focus:outline-none"
-            >
-              {DIMENSIONS.map((d) => (
-                <option key={d.id} value={d.id}>
-                  {d.label}
-                </option>
-              ))}
-            </select>
+      <Card className="gap-0 border-border py-0">
+        <CardContent className="space-y-4 p-4">
+          {/* Row 1: Group By + Date Range */}
+          <div className="flex flex-wrap items-end gap-4">
+            <div>
+              <label className="mb-1.5 block text-[11px] font-medium uppercase tracking-wider text-muted-foreground/60">
+                Group rows by
+              </label>
+              <Select value={groupBy} onValueChange={setGroupBy}>
+                <SelectTrigger className="w-[160px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {DIMENSIONS.map((d) => (
+                    <SelectItem key={d.id} value={d.id}>{d.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <label className="mb-1.5 block text-[11px] font-medium uppercase tracking-wider text-muted-foreground/60">
+                Date range
+              </label>
+              <div className="flex gap-1">
+                {DATE_RANGES.map((r) => (
+                  <Button
+                    key={r.value}
+                    variant={dateRange === r.value ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setDateRange(r.value)}
+                    className="text-xs"
+                  >
+                    {r.label}
+                  </Button>
+                ))}
+              </div>
+            </div>
           </div>
+
+          {/* Row 2: Filters */}
           <div>
-            <label className="mb-1 block text-[11px] font-medium text-text-dim">
-              DATE RANGE
+            <label className="mb-1.5 block text-[11px] font-medium uppercase tracking-wider text-muted-foreground/60">
+              Filters
             </label>
-            <div className="flex gap-1">
-              {DATE_RANGES.map((r) => (
-                <button
-                  key={r.value}
-                  onClick={() => setDateRange(r.value)}
+            <div className="flex flex-wrap gap-2">
+              {filterOptions.tags.length > 0 && (
+                <Select value={tagFilter || "all"} onValueChange={(v) => setTagFilter(v === "all" ? "" : v)}>
+                  <SelectTrigger size="sm" className="text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Tags</SelectItem>
+                    {filterOptions.tags.map((t) => (
+                      <SelectItem key={t} value={t}>{t}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+              {filterOptions.sources.length > 0 && (
+                <Select value={sourceFilter || "all"} onValueChange={(v) => setSourceFilter(v === "all" ? "" : v)}>
+                  <SelectTrigger size="sm" className="text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Sources</SelectItem>
+                    {filterOptions.sources.map((s) => (
+                      <SelectItem key={s} value={s}>{s}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+              {filterOptions.funnels.length > 0 && (
+                <Select value={funnelFilter || "all"} onValueChange={(v) => setFunnelFilter(v === "all" ? "" : v)}>
+                  <SelectTrigger size="sm" className="text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Funnels</SelectItem>
+                    {filterOptions.funnels.map((f) => (
+                      <SelectItem key={f.id} value={f.id}>{f.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+              {filterOptions.experiments.length > 0 && (
+                <Select value={experimentFilter || "all"} onValueChange={(v) => setExperimentFilter(v === "all" ? "" : v)}>
+                  <SelectTrigger size="sm" className="text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Experiments</SelectItem>
+                    {filterOptions.experiments.map((e) => (
+                      <SelectItem key={e.id} value={e.id}>{e.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+              <Select value={qualityFilter || "all"} onValueChange={(v) => setQualityFilter(v === "all" ? "" : v)}>
+                <SelectTrigger size="sm" className="text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Quality</SelectItem>
+                  <SelectItem value="HIGH">High</SelectItem>
+                  <SelectItem value="MEDIUM">Medium</SelectItem>
+                  <SelectItem value="LOW">Low</SelectItem>
+                  <SelectItem value="UNKNOWN">Unknown</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          {/* Row 3: Metrics */}
+          <div>
+            <label className="mb-1.5 block text-[11px] font-medium uppercase tracking-wider text-muted-foreground/60">
+              Columns
+            </label>
+            <div className="flex flex-wrap gap-2">
+              {METRICS.map((m) => (
+                <Badge
+                  key={m.id}
+                  variant={selectedMetrics.has(m.id) ? "default" : "outline"}
                   className={cn(
-                    "rounded-md px-2.5 py-1.5 text-xs font-medium transition-colors",
-                    dateRange === r.value
-                      ? "bg-accent text-white"
-                      : "border border-border bg-bg text-text-muted hover:text-text"
+                    "cursor-pointer transition-colors",
+                    selectedMetrics.has(m.id)
+                      ? "bg-primary/10 text-primary border-primary/20 hover:bg-primary/15"
+                      : "hover:bg-secondary"
                   )}
+                  onClick={() => toggleMetric(m.id)}
                 >
-                  {r.label}
-                </button>
+                  {m.label}
+                </Badge>
               ))}
             </div>
           </div>
-        </div>
 
-        {/* Row 2: Filters */}
-        <div>
-          <label className="mb-1.5 block text-[11px] font-medium text-text-dim">
-            FILTERS
-          </label>
-          <div className="flex flex-wrap gap-2">
-            {filterOptions.tags.length > 0 && (
-              <select
-                value={tagFilter}
-                onChange={(e) => setTagFilter(e.target.value)}
-                className={cn(
-                  "rounded-md border border-border bg-bg px-3 py-1.5 text-xs focus:border-accent focus:outline-none",
-                  tagFilter ? "text-accent" : "text-text-muted"
-                )}
-              >
-                <option value="">All Tags</option>
-                {filterOptions.tags.map((t) => (
-                  <option key={t} value={t}>
-                    {t}
-                  </option>
-                ))}
-              </select>
+          {/* Generate */}
+          <Button
+            onClick={generate}
+            disabled={loading || selectedMetrics.size === 0}
+          >
+            {loading ? (
+              <span className="flex items-center gap-2">
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                Generating...
+              </span>
+            ) : (
+              "Generate Table"
             )}
-            {filterOptions.sources.length > 0 && (
-              <select
-                value={sourceFilter}
-                onChange={(e) => setSourceFilter(e.target.value)}
-                className={cn(
-                  "rounded-md border border-border bg-bg px-3 py-1.5 text-xs focus:border-accent focus:outline-none",
-                  sourceFilter ? "text-accent" : "text-text-muted"
-                )}
-              >
-                <option value="">All Sources</option>
-                {filterOptions.sources.map((s) => (
-                  <option key={s} value={s}>
-                    {s}
-                  </option>
-                ))}
-              </select>
-            )}
-            {filterOptions.funnels.length > 0 && (
-              <select
-                value={funnelFilter}
-                onChange={(e) => setFunnelFilter(e.target.value)}
-                className={cn(
-                  "rounded-md border border-border bg-bg px-3 py-1.5 text-xs focus:border-accent focus:outline-none",
-                  funnelFilter ? "text-accent" : "text-text-muted"
-                )}
-              >
-                <option value="">All Funnels</option>
-                {filterOptions.funnels.map((f) => (
-                  <option key={f.id} value={f.id}>
-                    {f.name}
-                  </option>
-                ))}
-              </select>
-            )}
-            {filterOptions.experiments.length > 0 && (
-              <select
-                value={experimentFilter}
-                onChange={(e) => setExperimentFilter(e.target.value)}
-                className={cn(
-                  "rounded-md border border-border bg-bg px-3 py-1.5 text-xs focus:border-accent focus:outline-none",
-                  experimentFilter ? "text-accent" : "text-text-muted"
-                )}
-              >
-                <option value="">All Experiments</option>
-                {filterOptions.experiments.map((e) => (
-                  <option key={e.id} value={e.id}>
-                    {e.name}
-                  </option>
-                ))}
-              </select>
-            )}
-            <select
-              value={qualityFilter}
-              onChange={(e) => setQualityFilter(e.target.value)}
-              className={cn(
-                "rounded-md border border-border bg-bg px-3 py-1.5 text-xs focus:border-accent focus:outline-none",
-                qualityFilter ? "text-accent" : "text-text-muted"
-              )}
-            >
-              <option value="">All Quality</option>
-              <option value="HIGH">High</option>
-              <option value="MEDIUM">Medium</option>
-              <option value="LOW">Low</option>
-              <option value="UNKNOWN">Unknown</option>
-            </select>
-          </div>
-        </div>
-
-        {/* Row 3: Metrics */}
-        <div>
-          <label className="mb-1.5 block text-[11px] font-medium text-text-dim">
-            COLUMNS
-          </label>
-          <div className="flex flex-wrap gap-2">
-            {METRICS.map((m) => (
-              <label
-                key={m.id}
-                className={cn(
-                  "flex cursor-pointer items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-xs transition-colors",
-                  selectedMetrics.has(m.id)
-                    ? "border-accent bg-accent-dim text-accent"
-                    : "border-border text-text-muted hover:text-text"
-                )}
-              >
-                <input
-                  type="checkbox"
-                  checked={selectedMetrics.has(m.id)}
-                  onChange={() => toggleMetric(m.id)}
-                  className="sr-only"
-                />
-                {m.label}
-              </label>
-            ))}
-          </div>
-        </div>
-
-        {/* Generate */}
-        <button
-          onClick={generate}
-          disabled={loading || selectedMetrics.size === 0}
-          className="rounded-md bg-accent px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-accent-hover disabled:opacity-50"
-        >
-          {loading ? (
-            <span className="flex items-center gap-2">
-              <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              Generating...
-            </span>
-          ) : (
-            "Generate Table"
-          )}
-        </button>
-      </div>
+          </Button>
+        </CardContent>
+      </Card>
 
       {/* Results */}
       {results && (
-        <div className="space-y-3">
+        <div className="space-y-3 animate-fade-in">
           <div className="flex items-center justify-between">
-            <p className="text-xs text-text-muted">
+            <p className="text-xs text-muted-foreground">
               {results.rows.length} row{results.rows.length !== 1 ? "s" : ""}
               {(groupBy === "tag" || groupBy === "eventType") && (
-                <span className="ml-1 text-text-dim">
+                <span className="ml-1 text-muted-foreground/60">
                   (contacts may appear in multiple groups)
                 </span>
               )}
             </p>
-            <button
-              onClick={exportCSV}
-              className="flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-xs text-text-muted transition-colors hover:text-text"
-            >
+            <Button variant="outline" size="sm" onClick={exportCSV}>
               <Download className="h-3 w-3" />
               Export CSV
-            </button>
+            </Button>
           </div>
 
           {results.rows.length === 0 ? (
-            <div className="rounded-lg border border-border bg-surface p-8 text-center text-sm text-text-muted">
-              No data matching your filters.
-            </div>
+            <Card className="border-border py-0">
+              <div className="p-8 text-center text-sm text-muted-foreground">
+                No data matching your filters.
+              </div>
+            </Card>
           ) : (
-            <div className="overflow-x-auto rounded-lg border border-border bg-surface">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-border">
-                    <th
-                      className="cursor-pointer px-4 py-3 text-left text-xs font-medium text-text-muted transition-colors hover:text-text"
+            <Card className="gap-0 border-border py-0 overflow-hidden">
+              <Table>
+                <TableHeader>
+                  <TableRow className="border-border hover:bg-transparent">
+                    <TableHead
+                      className="cursor-pointer px-4 text-xs transition-colors hover:text-foreground"
                       onClick={() => handleSort("dimension")}
                     >
                       <span className="flex items-center gap-1">
                         {getDimensionLabel()}
                         <ArrowUpDown className="h-3 w-3" />
                       </span>
-                    </th>
+                    </TableHead>
                     {activeMetrics.map((m) => (
-                      <th
+                      <TableHead
                         key={m.id}
-                        className="cursor-pointer px-4 py-3 text-right text-xs font-medium text-text-muted transition-colors hover:text-text"
+                        className="cursor-pointer px-4 text-right text-xs transition-colors hover:text-foreground"
                         onClick={() => handleSort(m.id)}
                       >
                         <span className="flex items-center justify-end gap-1">
                           {m.label}
                           <ArrowUpDown className="h-3 w-3" />
                         </span>
-                      </th>
+                      </TableHead>
                     ))}
-                  </tr>
-                </thead>
-                <tbody>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
                   {getSortedRows().map((row) => (
-                    <tr
-                      key={row.dimension}
-                      className="border-b border-border transition-colors last:border-0 hover:bg-surface-elevated/50"
-                    >
-                      <td className="px-4 py-3 font-medium">{row.dimension}</td>
+                    <TableRow key={row.dimension} className="border-border">
+                      <TableCell className="px-4 font-medium">{row.dimension}</TableCell>
                       {activeMetrics.map((m) => (
-                        <td
+                        <TableCell
                           key={m.id}
                           className={cn(
-                            "px-4 py-3 text-right tabular-nums",
-                            m.format === "currency" ? "text-green" : "text-text-muted"
+                            "px-4 text-right tabular-nums",
+                            m.format === "currency" ? "text-green" : "text-muted-foreground"
                           )}
                         >
                           {formatValue(row[m.id] as number, m.id)}
-                        </td>
+                        </TableCell>
                       ))}
-                    </tr>
+                    </TableRow>
                   ))}
-                </tbody>
-                <tfoot>
-                  <tr className="border-t-2 border-border bg-bg">
-                    <td className="px-4 py-3 text-xs font-semibold text-text-dim">TOTAL</td>
+                </TableBody>
+                <TableFooter className="bg-background border-border">
+                  <TableRow className="hover:bg-transparent">
+                    <TableCell className="px-4 text-xs font-semibold text-muted-foreground/60">TOTAL</TableCell>
                     {activeMetrics.map((m) => (
-                      <td
+                      <TableCell
                         key={m.id}
                         className={cn(
-                          "px-4 py-3 text-right text-xs font-semibold tabular-nums",
-                          m.format === "currency" ? "text-green" : "text-text-dim"
+                          "px-4 text-right text-xs font-semibold tabular-nums",
+                          m.format === "currency" ? "text-green" : "text-muted-foreground/60"
                         )}
                       >
                         {formatValue(results.totals[m.id] ?? 0, m.id)}
-                      </td>
+                      </TableCell>
                     ))}
-                  </tr>
-                </tfoot>
-              </table>
-            </div>
+                  </TableRow>
+                </TableFooter>
+              </Table>
+            </Card>
           )}
         </div>
       )}

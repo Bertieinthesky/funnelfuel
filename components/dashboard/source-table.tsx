@@ -3,6 +3,15 @@
 import { cn } from "@/lib/cn";
 import { useState } from "react";
 import { ArrowUpDown } from "lucide-react";
+import { Card } from "@/components/ui/card";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 
 interface SourceRow {
   source: string;
@@ -44,24 +53,26 @@ export function SourceTable({ data }: { data: SourceRow[] }) {
 
   if (data.length === 0) {
     return (
-      <div className="rounded-lg border border-border bg-surface p-8 text-center text-sm text-text-muted">
-        No source data yet. Events will appear here once traffic starts flowing.
-      </div>
+      <Card className="border-border py-0">
+        <div className="p-8 text-center text-sm text-muted-foreground">
+          No source data yet. Events will appear here once traffic starts flowing.
+        </div>
+      </Card>
     );
   }
 
   return (
-    <div className="overflow-x-auto rounded-lg border border-border bg-surface">
-      <table className="w-full text-sm">
-        <thead>
-          <tr className="border-b border-border">
-            <th className="px-4 py-3 text-left text-xs font-medium text-text-muted">
+    <Card className="gap-0 border-border py-0 overflow-hidden">
+      <Table>
+        <TableHeader>
+          <TableRow className="border-border hover:bg-transparent">
+            <TableHead className="px-4 text-xs text-muted-foreground">
               Source
-            </th>
+            </TableHead>
             {columns.map((col) => (
-              <th
+              <TableHead
                 key={col.key}
-                className="cursor-pointer px-4 py-3 text-right text-xs font-medium text-text-muted transition-colors hover:text-text"
+                className="cursor-pointer px-4 text-right text-xs text-muted-foreground transition-colors hover:text-foreground"
                 onClick={() => toggleSort(col.key)}
               >
                 <span className="inline-flex items-center gap-1">
@@ -69,53 +80,53 @@ export function SourceTable({ data }: { data: SourceRow[] }) {
                   <ArrowUpDown
                     className={cn(
                       "h-3 w-3",
-                      sortKey === col.key ? "text-accent" : "text-text-dim"
+                      sortKey === col.key ? "text-primary" : "text-muted-foreground/40"
                     )}
                   />
                 </span>
-              </th>
+              </TableHead>
             ))}
-          </tr>
-        </thead>
-        <tbody>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
           {sorted.map((row, i) => (
-            <tr
+            <TableRow
               key={row.source}
               className={cn(
-                "border-b border-border transition-colors last:border-0 hover:bg-surface-elevated",
-                i === 0 && "bg-accent-dim/30"
+                "border-border transition-colors",
+                i === 0 && "bg-primary/5"
               )}
             >
-              <td className="px-4 py-3 font-medium">
+              <TableCell className="px-4 font-medium">
                 <div className="flex items-center gap-2">
                   <span
                     className={cn(
                       "inline-block h-2 w-2 rounded-full",
                       row.source === "direct"
-                        ? "bg-text-dim"
+                        ? "bg-muted-foreground/40"
                         : i === 0
-                          ? "bg-accent"
-                          : "bg-text-muted"
+                          ? "bg-primary"
+                          : "bg-muted-foreground"
                     )}
                   />
                   {row.source}
                 </div>
-              </td>
+              </TableCell>
               {columns.map((col) => (
-                <td
+                <TableCell
                   key={col.key}
                   className={cn(
-                    "px-4 py-3 text-right tabular-nums",
-                    col.key === "revenue" ? "font-medium" : "text-text-muted"
+                    "px-4 text-right tabular-nums",
+                    col.key === "revenue" ? "font-medium text-foreground" : "text-muted-foreground"
                   )}
                 >
                   {col.format(row[col.key])}
-                </td>
+                </TableCell>
               ))}
-            </tr>
+            </TableRow>
           ))}
-        </tbody>
-      </table>
-    </div>
+        </TableBody>
+      </Table>
+    </Card>
   );
 }

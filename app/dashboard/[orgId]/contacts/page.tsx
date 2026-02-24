@@ -5,6 +5,17 @@ import { cn } from "@/lib/cn";
 import { formatDistanceToNow } from "date-fns";
 import { EventType } from "@prisma/client";
 import Link from "next/link";
+import { Card } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 
 export default async function ContactsPage({
   params,
@@ -17,7 +28,6 @@ export default async function ContactsPage({
   const sp = await searchParams;
   const page = Math.max(1, parseInt(sp.page ?? "1", 10) || 1);
 
-  // Build filters from search params
   const filters: ContactFilters = {};
   if (sp.q) filters.search = sp.q;
   if (sp.source) filters.source = sp.source;
@@ -41,8 +51,8 @@ export default async function ContactsPage({
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-xl font-semibold tracking-tight">Contacts</h1>
-        <p className="text-sm text-text-muted">
+        <h1 className="text-xl font-semibold tracking-tight text-foreground">Contacts</h1>
+        <p className="text-sm text-muted-foreground">
           {total.toLocaleString()} contact{total !== 1 ? "s" : ""}
           {Object.keys(filters).length > 0 ? " matching filters" : " total"}
         </p>
@@ -56,144 +66,126 @@ export default async function ContactsPage({
       />
 
       {contacts.length === 0 ? (
-        <div className="rounded-lg border border-border bg-surface p-12 text-center text-sm text-text-muted">
-          {Object.keys(filters).length > 0
-            ? "No contacts match your filters."
-            : "No contacts yet. Contacts are created when visitors submit forms or complete purchases."}
-        </div>
+        <Card className="border-border py-0">
+          <div className="p-12 text-center text-sm text-muted-foreground">
+            {Object.keys(filters).length > 0
+              ? "No contacts match your filters."
+              : "No contacts yet. Contacts are created when visitors submit forms or complete purchases."}
+          </div>
+        </Card>
       ) : (
         <>
-          <div className="overflow-x-auto rounded-lg border border-border bg-surface">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-border">
-                  <th className="px-4 py-3 text-left text-xs font-medium text-text-muted">
-                    Contact
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-text-muted">
-                    Email
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-text-muted">
-                    Phone
-                  </th>
-                  <th className="px-4 py-3 text-center text-xs font-medium text-text-muted">
-                    Quality
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-text-muted">
-                    Tags
-                  </th>
-                  <th className="px-4 py-3 text-right text-xs font-medium text-text-muted">
-                    Events
-                  </th>
-                  <th className="px-4 py-3 text-right text-xs font-medium text-text-muted">
-                    Payments
-                  </th>
-                  <th className="px-4 py-3 text-right text-xs font-medium text-text-muted">
-                    Created
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
+          <Card className="gap-0 border-border py-0 overflow-hidden">
+            <Table>
+              <TableHeader>
+                <TableRow className="border-border hover:bg-transparent">
+                  <TableHead className="px-4 text-xs">Contact</TableHead>
+                  <TableHead className="px-4 text-xs">Email</TableHead>
+                  <TableHead className="px-4 text-xs">Phone</TableHead>
+                  <TableHead className="px-4 text-center text-xs">Quality</TableHead>
+                  <TableHead className="px-4 text-xs">Tags</TableHead>
+                  <TableHead className="px-4 text-right text-xs">Events</TableHead>
+                  <TableHead className="px-4 text-right text-xs">Payments</TableHead>
+                  <TableHead className="px-4 text-right text-xs">Created</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
                 {contacts.map((contact) => {
                   const name = [contact.firstName, contact.lastName]
                     .filter(Boolean)
                     .join(" ");
 
                   return (
-                    <tr key={contact.id}>
-                      <td className="px-4 py-3">
+                    <TableRow key={contact.id} className="border-border">
+                      <TableCell className="px-4">
                         <Link
                           href={`/dashboard/${orgId}/contacts/${contact.id}`}
-                          className="font-medium text-text transition-colors hover:text-accent"
+                          className="font-medium text-foreground transition-colors hover:text-primary"
                         >
                           {name || (
-                            <span className="text-text-dim">Anonymous</span>
+                            <span className="text-muted-foreground/60">Anonymous</span>
                           )}
                         </Link>
-                      </td>
-                      <td className="px-4 py-3 text-text-muted">
+                      </TableCell>
+                      <TableCell className="px-4 text-muted-foreground">
                         {contact.email ?? "—"}
-                      </td>
-                      <td className="px-4 py-3 text-text-muted">
+                      </TableCell>
+                      <TableCell className="px-4 text-muted-foreground">
                         {contact.phone ?? "—"}
-                      </td>
-                      <td className="px-4 py-3 text-center">
-                        <span
+                      </TableCell>
+                      <TableCell className="px-4 text-center">
+                        <Badge
+                          variant="secondary"
                           className={cn(
-                            "inline-block rounded-full px-2 py-0.5 text-[11px] font-medium",
-                            contact.leadQuality === "HIGH" &&
-                              "bg-green-dim text-green",
-                            contact.leadQuality === "MEDIUM" &&
-                              "bg-yellow-dim text-yellow",
-                            contact.leadQuality === "LOW" &&
-                              "bg-red-dim text-red",
-                            contact.leadQuality === "UNKNOWN" &&
-                              "bg-surface-elevated text-text-dim"
+                            "text-[11px]",
+                            contact.leadQuality === "HIGH" && "bg-green-dim text-green",
+                            contact.leadQuality === "MEDIUM" && "bg-yellow-dim text-yellow",
+                            contact.leadQuality === "LOW" && "bg-red-dim text-red",
+                            contact.leadQuality === "UNKNOWN" && "bg-secondary text-muted-foreground/60"
                           )}
                         >
                           {contact.leadQuality.toLowerCase()}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3">
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="px-4">
                         {contact.tags.length > 0 ? (
                           <div className="flex flex-wrap gap-1">
                             {contact.tags.slice(0, 3).map((tag) => (
-                              <span
+                              <Badge
                                 key={tag}
-                                className="rounded-full bg-accent-dim px-1.5 py-0.5 text-[10px] text-accent"
+                                variant="secondary"
+                                className="bg-primary/10 text-primary text-[10px] px-1.5 py-0"
                               >
                                 {tag}
-                              </span>
+                              </Badge>
                             ))}
                             {contact.tags.length > 3 && (
-                              <span className="text-[10px] text-text-dim">
+                              <span className="text-[10px] text-muted-foreground/60">
                                 +{contact.tags.length - 3}
                               </span>
                             )}
                           </div>
                         ) : (
-                          <span className="text-text-dim">—</span>
+                          <span className="text-muted-foreground/60">—</span>
                         )}
-                      </td>
-                      <td className="px-4 py-3 text-right tabular-nums text-text-muted">
+                      </TableCell>
+                      <TableCell className="px-4 text-right tabular-nums text-muted-foreground">
                         {contact._count.events}
-                      </td>
-                      <td className="px-4 py-3 text-right tabular-nums text-text-muted">
+                      </TableCell>
+                      <TableCell className="px-4 text-right tabular-nums text-muted-foreground">
                         {contact._count.payments}
-                      </td>
-                      <td className="px-4 py-3 text-right text-text-dim">
+                      </TableCell>
+                      <TableCell className="px-4 text-right text-muted-foreground/60">
                         {formatDistanceToNow(new Date(contact.createdAt), {
                           addSuffix: true,
                         })}
-                      </td>
-                    </tr>
+                      </TableCell>
+                    </TableRow>
                   );
                 })}
-              </tbody>
-            </table>
-          </div>
+              </TableBody>
+            </Table>
+          </Card>
 
           {/* Pagination */}
           {totalPages > 1 && (
             <div className="flex items-center justify-center gap-2">
               {page > 1 && (
-                <Link
-                  href={`?${new URLSearchParams({ ...sp, page: String(page - 1) }).toString()}`}
-                  className="rounded-md border border-border bg-surface px-3 py-1.5 text-xs text-text-muted hover:text-text"
-                >
-                  Previous
-                </Link>
+                <Button variant="outline" size="sm" asChild>
+                  <Link href={`?${new URLSearchParams({ ...sp, page: String(page - 1) }).toString()}`}>
+                    Previous
+                  </Link>
+                </Button>
               )}
-              <span className="text-xs text-text-dim">
+              <span className="text-xs text-muted-foreground/60">
                 Page {page} of {totalPages}
               </span>
               {page < totalPages && (
-                <Link
-                  href={`?${new URLSearchParams({ ...sp, page: String(page + 1) }).toString()}`}
-                  className="rounded-md border border-border bg-surface px-3 py-1.5 text-xs text-text-muted hover:text-text"
-                >
-                  Next
-                </Link>
+                <Button variant="outline" size="sm" asChild>
+                  <Link href={`?${new URLSearchParams({ ...sp, page: String(page + 1) }).toString()}`}>
+                    Next
+                  </Link>
+                </Button>
               )}
             </div>
           )}

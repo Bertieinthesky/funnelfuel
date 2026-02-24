@@ -3,6 +3,10 @@
 import { cn } from "@/lib/cn";
 import { useState } from "react";
 import { format } from "date-fns";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Card } from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
 import {
   Eye,
   FormInput,
@@ -43,19 +47,19 @@ const eventIcons: Record<string, typeof Eye> = {
 };
 
 const eventColors: Record<string, { text: string; bg: string }> = {
-  PAGE_VIEW: { text: "text-text-muted", bg: "bg-surface-elevated" },
+  PAGE_VIEW: { text: "text-muted-foreground", bg: "bg-secondary" },
   FORM_SUBMIT: { text: "text-blue", bg: "bg-blue-dim" },
   OPT_IN: { text: "text-green", bg: "bg-green-dim" },
   CHECKOUT_VIEW: { text: "text-yellow", bg: "bg-yellow-dim" },
   PURCHASE: { text: "text-green", bg: "bg-green-dim" },
   BOOKING: { text: "text-blue", bg: "bg-blue-dim" },
   BOOKING_CONFIRMED: { text: "text-green", bg: "bg-green-dim" },
-  APPLICATION_SUBMIT: { text: "text-accent", bg: "bg-accent-dim" },
+  APPLICATION_SUBMIT: { text: "text-primary", bg: "bg-primary/10" },
   WEBINAR_REGISTER: { text: "text-blue", bg: "bg-blue-dim" },
   WEBINAR_ATTEND: { text: "text-green", bg: "bg-green-dim" },
-  WEBINAR_CTA_CLICK: { text: "text-accent", bg: "bg-accent-dim" },
+  WEBINAR_CTA_CLICK: { text: "text-primary", bg: "bg-primary/10" },
   URL_RULE_MATCH: { text: "text-yellow", bg: "bg-yellow-dim" },
-  CUSTOM: { text: "text-text-muted", bg: "bg-surface-elevated" },
+  CUSTOM: { text: "text-muted-foreground", bg: "bg-secondary" },
 };
 
 const filterOptions = [
@@ -87,23 +91,25 @@ export function JourneyTimeline({ items }: { items: TimelineItem[] }) {
       {/* Filter chips */}
       <div className="mb-4 flex gap-1.5">
         {filterOptions.map((opt) => (
-          <button
+          <Button
             key={opt.value}
+            variant={filter === opt.value ? "default" : "ghost"}
+            size="xs"
             onClick={() => setFilter(opt.value)}
             className={cn(
-              "rounded-full px-3 py-1 text-xs font-medium transition-colors",
+              "rounded-full",
               filter === opt.value
-                ? "bg-accent-dim text-accent"
-                : "bg-surface text-text-muted hover:text-text"
+                ? "bg-primary/10 text-primary hover:bg-primary/15"
+                : "text-muted-foreground hover:text-foreground"
             )}
           >
             {opt.label}
             {opt.value !== "all" && (
-              <span className="ml-1 text-text-dim">
+              <span className="ml-1 text-muted-foreground/60">
                 ({items.filter((i) => i.type === opt.value).length})
               </span>
             )}
-          </button>
+          </Button>
         ))}
       </div>
 
@@ -112,7 +118,7 @@ export function JourneyTimeline({ items }: { items: TimelineItem[] }) {
         {/* Vertical line */}
         <div className="absolute left-5 top-0 h-full w-px bg-border" />
 
-        {filtered.map((item, i) => {
+        {filtered.map((item) => {
           const isExpanded = expanded.has(item.id);
 
           return (
@@ -123,15 +129,15 @@ export function JourneyTimeline({ items }: { items: TimelineItem[] }) {
               {/* Dot on timeline */}
               <div className="relative z-10 flex h-10 w-10 shrink-0 items-center justify-center">
                 {item.type === "session" && (
-                  <div className="flex h-8 w-8 items-center justify-center rounded-full border-2 border-accent bg-bg">
-                    <Globe className="h-3.5 w-3.5 text-accent" />
+                  <div className="flex h-8 w-8 items-center justify-center rounded-full border-2 border-primary bg-background">
+                    <Globe className="h-3.5 w-3.5 text-primary" />
                   </div>
                 )}
                 {item.type === "event" && (
                   <div
                     className={cn(
                       "flex h-8 w-8 items-center justify-center rounded-full",
-                      eventColors[String(item.data.eventType)]?.bg ?? "bg-surface-elevated"
+                      eventColors[String(item.data.eventType)]?.bg ?? "bg-secondary"
                     )}
                   >
                     {(() => {
@@ -140,7 +146,7 @@ export function JourneyTimeline({ items }: { items: TimelineItem[] }) {
                         <Icon
                           className={cn(
                             "h-3.5 w-3.5",
-                            eventColors[String(item.data.eventType)]?.text ?? "text-text-muted"
+                            eventColors[String(item.data.eventType)]?.text ?? "text-muted-foreground"
                           )}
                         />
                       );
@@ -148,8 +154,8 @@ export function JourneyTimeline({ items }: { items: TimelineItem[] }) {
                   </div>
                 )}
                 {item.type === "page_view" && (
-                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-surface-elevated">
-                    <Eye className="h-3.5 w-3.5 text-text-dim" />
+                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-secondary">
+                    <Eye className="h-3.5 w-3.5 text-muted-foreground" />
                   </div>
                 )}
                 {item.type === "payment" && (
@@ -160,27 +166,29 @@ export function JourneyTimeline({ items }: { items: TimelineItem[] }) {
               </div>
 
               {/* Content */}
-              <div
-                className="flex-1 cursor-pointer rounded-lg border border-border bg-surface p-3 transition-colors hover:border-border-bright"
+              <Card
+                className="flex-1 cursor-pointer gap-0 border-border py-0 transition-all duration-200 hover:border-border-bright"
                 onClick={() => toggle(item.id)}
               >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    {renderLabel(item)}
+                <div className="p-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      {renderLabel(item)}
+                    </div>
+                    <span className="text-[11px] text-muted-foreground/60">
+                      {format(new Date(item.timestamp), "MMM d, h:mm a")}
+                    </span>
                   </div>
-                  <span className="text-[11px] text-text-dim">
-                    {format(new Date(item.timestamp), "MMM d, h:mm a")}
-                  </span>
+                  {renderSummary(item)}
+                  {isExpanded && renderDetails(item)}
                 </div>
-                {renderSummary(item)}
-                {isExpanded && renderDetails(item)}
-              </div>
+              </Card>
             </div>
           );
         })}
 
         {filtered.length === 0 && (
-          <div className="py-8 text-center text-sm text-text-muted">
+          <div className="py-8 text-center text-sm text-muted-foreground">
             No journey events matching this filter.
           </div>
         )}
@@ -195,12 +203,12 @@ function renderLabel(item: TimelineItem) {
       const source = String(item.data.source || "direct");
       return (
         <>
-          <span className="text-xs font-medium text-accent">New Session</span>
-          <span className="rounded-full bg-accent-dim px-1.5 py-0.5 text-[10px] text-accent">
+          <span className="text-xs font-medium text-primary">New Session</span>
+          <Badge variant="secondary" className="bg-primary/10 text-primary text-[10px]">
             {source}
-          </span>
+          </Badge>
           {item.data.title && (
-            <span className="text-[10px] text-text-dim">
+            <span className="text-[10px] text-muted-foreground/60">
               {String(item.data.title)}
             </span>
           )}
@@ -216,22 +224,22 @@ function renderLabel(item: TimelineItem) {
             {eventType.replace(/_/g, " ")}
           </span>
           {item.data.funnel && (
-            <span className="text-[10px] text-text-dim">
+            <span className="text-[10px] text-muted-foreground/60">
               in {String(item.data.funnel)}
             </span>
           )}
           {item.data.variant && (
-            <span className="rounded-full bg-blue-dim px-1.5 py-0.5 text-[10px] text-blue">
+            <Badge variant="secondary" className="bg-blue-dim text-blue text-[10px]">
               {String(item.data.variant)}
-            </span>
+            </Badge>
           )}
         </>
       );
     }
     case "page_view":
       return (
-        <span className="text-xs text-text-muted">
-          Viewed <span className="font-medium text-text">{String(item.data.path)}</span>
+        <span className="text-xs text-muted-foreground">
+          Viewed <span className="font-medium text-foreground">{String(item.data.path)}</span>
         </span>
       );
     case "payment":
@@ -244,26 +252,26 @@ function renderLabel(item: TimelineItem) {
         </>
       );
     default:
-      return <span className="text-xs text-text-muted">Unknown</span>;
+      return <span className="text-xs text-muted-foreground">Unknown</span>;
   }
 }
 
 function renderSummary(item: TimelineItem) {
   if (item.type === "session" && item.data.landingPage) {
     return (
-      <p className="mt-1 truncate text-[11px] text-text-dim">
+      <p className="mt-1 truncate text-[11px] text-muted-foreground/60">
         Landing: {String(item.data.landingPage)}
       </p>
     );
   }
   if (item.type === "page_view" && item.data.title) {
     return (
-      <p className="mt-1 text-[11px] text-text-dim">{String(item.data.title)}</p>
+      <p className="mt-1 text-[11px] text-muted-foreground/60">{String(item.data.title)}</p>
     );
   }
   if (item.type === "payment" && item.data.product) {
     return (
-      <p className="mt-1 text-[11px] text-text-dim">
+      <p className="mt-1 text-[11px] text-muted-foreground/60">
         {String(item.data.product)} via {String(item.data.processor)}
       </p>
     );
@@ -279,20 +287,20 @@ function renderDetails(item: TimelineItem) {
   if (details.length === 0) return null;
 
   return (
-    <div className="mt-2 space-y-1 border-t border-border pt-2">
+    <div className="mt-2 space-y-1 pt-2">
+      <Separator className="mb-2" />
       {details.map(([key, value]) => (
         <div key={key} className="flex items-center gap-2 text-[11px]">
-          <span className="text-text-dim">{key}:</span>
-          <span className="truncate text-text-muted">{String(value)}</span>
+          <span className="text-muted-foreground/60">{key}:</span>
+          <span className="truncate text-muted-foreground">{String(value)}</span>
         </div>
       ))}
-      {/* Show nested objects like adClicks */}
       {Object.entries(item.data)
         .filter(([, v]) => v != null && typeof v === "object")
         .map(([key, value]) => (
           <div key={key} className="text-[11px]">
-            <span className="text-text-dim">{key}:</span>
-            <pre className="mt-0.5 overflow-x-auto rounded bg-bg p-1.5 text-[10px] text-text-dim">
+            <span className="text-muted-foreground/60">{key}:</span>
+            <pre className="mt-0.5 overflow-x-auto rounded-md bg-background p-1.5 text-[10px] text-muted-foreground/60">
               {JSON.stringify(value, null, 2)}
             </pre>
           </div>

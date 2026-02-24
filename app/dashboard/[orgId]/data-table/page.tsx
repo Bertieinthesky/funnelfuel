@@ -12,8 +12,8 @@ export default async function DataTablePage({
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-xl font-semibold tracking-tight">Data Table</h1>
-        <p className="text-sm text-text-muted">
+        <h1 className="text-xl font-semibold tracking-tight text-foreground">Data Table</h1>
+        <p className="text-sm text-muted-foreground">
           Build custom views of your data with flexible grouping and metrics
         </p>
       </div>

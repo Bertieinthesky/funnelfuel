@@ -9,9 +9,19 @@ import {
   Power,
   ChevronDown,
   ChevronUp,
-  GripVertical,
   X,
 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 const FUNNEL_TYPES = [
   { value: "LOW_TICKET", label: "Low Ticket" },
@@ -35,7 +45,6 @@ const STEP_TYPES = [
   { value: "CUSTOM", label: "Custom" },
 ];
 
-// Preset funnel templates
 const TEMPLATES: Record<string, { steps: { name: string; type: string; urlPattern: string }[] }> = {
   LOW_TICKET: {
     steps: [
@@ -190,202 +199,198 @@ export function FunnelManager({ orgId, initialFunnels }: Props) {
     <section>
       <div className="mb-4 flex items-center justify-between">
         <div>
-          <h2 className="text-base font-medium">Funnels</h2>
-          <p className="text-xs text-text-muted">
+          <h2 className="text-base font-medium text-foreground">Funnels</h2>
+          <p className="text-xs text-muted-foreground">
             Define multi-step conversion flows to track performance
           </p>
         </div>
-        <button
-          onClick={() => setShowForm(!showForm)}
-          className="flex items-center gap-1.5 rounded-lg bg-accent px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-accent-hover"
-        >
+        <Button size="sm" onClick={() => setShowForm(!showForm)}>
           <Plus className="h-3.5 w-3.5" />
           New Funnel
-        </button>
+        </Button>
       </div>
 
       {/* Create form */}
       {showForm && (
-        <div className="mb-4 rounded-lg border border-accent/30 bg-surface p-4">
-          <div className="grid gap-3 md:grid-cols-2">
-            <div>
-              <label className="mb-1 block text-[11px] font-medium text-text-dim">
-                FUNNEL NAME
-              </label>
-              <input
-                type="text"
-                placeholder="e.g. Main Low Ticket Funnel"
-                value={form.name}
-                onChange={(e) => setForm({ ...form, name: e.target.value })}
-                className="w-full rounded-md border border-border bg-bg px-3 py-2 text-sm text-text placeholder:text-text-dim focus:border-accent focus:outline-none"
-              />
-            </div>
-            <div>
-              <label className="mb-1 block text-[11px] font-medium text-text-dim">
-                FUNNEL TYPE
-              </label>
-              <select
-                value={form.type}
-                onChange={(e) => selectType(e.target.value)}
-                className="w-full rounded-md border border-border bg-bg px-3 py-2 text-sm text-text focus:border-accent focus:outline-none"
-              >
-                {FUNNEL_TYPES.map((t) => (
-                  <option key={t.value} value={t.value}>
-                    {t.label}
-                  </option>
-                ))}
-              </select>
-              <p className="mt-1 text-[10px] text-text-dim">
-                Selecting a type pre-fills common steps. You can customize them below.
-              </p>
-            </div>
-          </div>
-
-          {/* Steps */}
-          <div className="mt-4">
-            <div className="mb-2 flex items-center justify-between">
-              <label className="text-[11px] font-medium text-text-dim">
-                FUNNEL STEPS ({form.steps.length})
-              </label>
-              <button
-                onClick={addStep}
-                className="flex items-center gap-1 text-[11px] text-accent hover:text-accent-hover"
-              >
-                <Plus className="h-3 w-3" />
-                Add Step
-              </button>
-            </div>
-
-            {form.steps.length === 0 ? (
-              <p className="rounded-md border border-dashed border-border p-4 text-center text-xs text-text-dim">
-                No steps yet. Select a funnel type above or add steps manually.
-              </p>
-            ) : (
-              <div className="space-y-2">
-                {form.steps.map((step, i) => (
-                  <div
-                    key={i}
-                    className="flex items-center gap-2 rounded-md border border-border bg-bg p-2"
-                  >
-                    <div className="flex flex-col gap-0.5">
-                      <button
-                        onClick={() => moveStep(i, -1)}
-                        disabled={i === 0}
-                        className="text-text-dim hover:text-text disabled:opacity-20"
-                      >
-                        <ChevronUp className="h-3 w-3" />
-                      </button>
-                      <button
-                        onClick={() => moveStep(i, 1)}
-                        disabled={i === form.steps.length - 1}
-                        className="text-text-dim hover:text-text disabled:opacity-20"
-                      >
-                        <ChevronDown className="h-3 w-3" />
-                      </button>
-                    </div>
-                    <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-surface-elevated text-[10px] font-medium text-text-dim">
-                      {i + 1}
-                    </span>
-                    <input
-                      type="text"
-                      placeholder="Step name"
-                      value={step.name}
-                      onChange={(e) => updateStep(i, "name", e.target.value)}
-                      className="flex-1 rounded border border-border bg-surface px-2 py-1 text-xs text-text placeholder:text-text-dim focus:border-accent focus:outline-none"
-                    />
-                    <select
-                      value={step.type}
-                      onChange={(e) => updateStep(i, "type", e.target.value)}
-                      className="rounded border border-border bg-surface px-2 py-1 text-xs text-text focus:border-accent focus:outline-none"
-                    >
-                      {STEP_TYPES.map((t) => (
-                        <option key={t.value} value={t.value}>
-                          {t.label}
-                        </option>
-                      ))}
-                    </select>
-                    <input
-                      type="text"
-                      placeholder="URL pattern (optional)"
-                      value={step.urlPattern}
-                      onChange={(e) =>
-                        updateStep(i, "urlPattern", e.target.value)
-                      }
-                      className="w-48 rounded border border-border bg-surface px-2 py-1 font-mono text-xs text-text placeholder:text-text-dim focus:border-accent focus:outline-none"
-                    />
-                    <button
-                      onClick={() => removeStep(i)}
-                      className="rounded p-1 text-text-dim hover:bg-red-dim hover:text-red"
-                    >
-                      <X className="h-3.5 w-3.5" />
-                    </button>
-                  </div>
-                ))}
+        <Card className="mb-4 gap-0 border-primary/30 py-0 animate-fade-in">
+          <CardContent className="p-4">
+            <div className="grid gap-3 md:grid-cols-2">
+              <div>
+                <label className="mb-1.5 block text-[11px] font-medium uppercase tracking-wider text-muted-foreground/60">
+                  Funnel name
+                </label>
+                <Input
+                  type="text"
+                  placeholder="e.g. Main Low Ticket Funnel"
+                  value={form.name}
+                  onChange={(e) => setForm({ ...form, name: e.target.value })}
+                />
               </div>
-            )}
-          </div>
+              <div>
+                <label className="mb-1.5 block text-[11px] font-medium uppercase tracking-wider text-muted-foreground/60">
+                  Funnel type
+                </label>
+                <Select value={form.type} onValueChange={selectType}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {FUNNEL_TYPES.map((t) => (
+                      <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="mt-1 text-[10px] text-muted-foreground/60">
+                  Selecting a type pre-fills common steps. You can customize them below.
+                </p>
+              </div>
+            </div>
 
-          <div className="mt-4 flex justify-end gap-2">
-            <button
-              onClick={() => {
-                setShowForm(false);
-                setForm({ name: "", type: "CUSTOM", steps: [] });
-              }}
-              className="rounded-md px-3 py-1.5 text-xs text-text-muted hover:text-text"
-            >
-              Cancel
-            </button>
-            <button
-              onClick={createFunnel}
-              disabled={!form.name || form.steps.length === 0 || saving}
-              className="rounded-md bg-accent px-4 py-1.5 text-xs font-medium text-white transition-colors hover:bg-accent-hover disabled:opacity-50"
-            >
-              {saving ? "Creating..." : "Create Funnel"}
-            </button>
-          </div>
-        </div>
+            {/* Steps */}
+            <div className="mt-4">
+              <div className="mb-2 flex items-center justify-between">
+                <label className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground/60">
+                  Funnel steps ({form.steps.length})
+                </label>
+                <Button variant="ghost" size="xs" onClick={addStep} className="text-primary">
+                  <Plus className="h-3 w-3" />
+                  Add Step
+                </Button>
+              </div>
+
+              {form.steps.length === 0 ? (
+                <div className="rounded-lg border border-dashed border-border p-4 text-center text-xs text-muted-foreground">
+                  No steps yet. Select a funnel type above or add steps manually.
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {form.steps.map((step, i) => (
+                    <div
+                      key={i}
+                      className="flex items-center gap-2 rounded-lg border border-border bg-background p-2"
+                    >
+                      <div className="flex flex-col gap-0.5">
+                        <Button
+                          variant="ghost"
+                          size="icon-xs"
+                          onClick={() => moveStep(i, -1)}
+                          disabled={i === 0}
+                        >
+                          <ChevronUp className="h-3 w-3" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon-xs"
+                          onClick={() => moveStep(i, 1)}
+                          disabled={i === form.steps.length - 1}
+                        >
+                          <ChevronDown className="h-3 w-3" />
+                        </Button>
+                      </div>
+                      <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-secondary text-[10px] font-medium text-muted-foreground">
+                        {i + 1}
+                      </span>
+                      <Input
+                        type="text"
+                        placeholder="Step name"
+                        value={step.name}
+                        onChange={(e) => updateStep(i, "name", e.target.value)}
+                        className="flex-1 h-7 text-xs"
+                      />
+                      <Select value={step.type} onValueChange={(v) => updateStep(i, "type", v)}>
+                        <SelectTrigger size="sm" className="w-[140px] text-xs">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {STEP_TYPES.map((t) => (
+                            <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <Input
+                        type="text"
+                        placeholder="URL pattern (optional)"
+                        value={step.urlPattern}
+                        onChange={(e) => updateStep(i, "urlPattern", e.target.value)}
+                        className="w-48 h-7 font-mono text-xs"
+                      />
+                      <Button
+                        variant="ghost"
+                        size="icon-xs"
+                        onClick={() => removeStep(i)}
+                        className="text-muted-foreground hover:text-red"
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="mt-4 flex justify-end gap-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setShowForm(false);
+                  setForm({ name: "", type: "CUSTOM", steps: [] });
+                }}
+              >
+                Cancel
+              </Button>
+              <Button
+                size="sm"
+                onClick={createFunnel}
+                disabled={!form.name || form.steps.length === 0 || saving}
+              >
+                {saving ? "Creating..." : "Create Funnel"}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
       )}
 
       {/* Existing funnels */}
       {initialFunnels.length === 0 && !showForm ? (
-        <div className="rounded-lg border border-border bg-surface p-8 text-center text-sm text-text-muted">
-          No funnels configured yet. Create one to start tracking multi-step conversions.
-        </div>
+        <Card className="border-border py-0">
+          <div className="p-8 text-center text-sm text-muted-foreground">
+            No funnels configured yet. Create one to start tracking multi-step conversions.
+          </div>
+        </Card>
       ) : (
         <div className="space-y-2">
           {initialFunnels.map((funnel) => {
             const isExpanded = expandedFunnel === funnel.id;
 
             return (
-              <div
+              <Card
                 key={funnel.id}
                 className={cn(
-                  "rounded-lg border bg-surface transition-colors",
+                  "gap-0 py-0 transition-all duration-200",
                   funnel.isActive ? "border-border" : "border-border opacity-50"
                 )}
               >
                 {/* Header */}
                 <div
                   className="flex cursor-pointer items-center justify-between p-4"
-                  onClick={() =>
-                    setExpandedFunnel(isExpanded ? null : funnel.id)
-                  }
+                  onClick={() => setExpandedFunnel(isExpanded ? null : funnel.id)}
                 >
                   <div className="flex items-center gap-3">
                     <div>
                       <div className="flex items-center gap-2">
-                        <h3 className="text-sm font-medium">{funnel.name}</h3>
-                        <span className="rounded-full bg-surface-elevated px-2 py-0.5 text-[10px] text-text-dim">
+                        <h3 className="text-sm font-medium text-foreground">{funnel.name}</h3>
+                        <Badge variant="secondary" className="text-[10px]">
                           {funnel.type.replace("_", " ").toLowerCase()}
-                        </span>
+                        </Badge>
                         <span
                           className={cn(
                             "inline-block h-2 w-2 rounded-full",
-                            funnel.isActive ? "bg-green" : "bg-text-dim"
+                            funnel.isActive ? "bg-green" : "bg-muted-foreground/40"
                           )}
                         />
                       </div>
-                      <p className="mt-0.5 text-xs text-text-dim">
+                      <p className="mt-0.5 text-xs text-muted-foreground/60">
                         {funnel.steps.length} steps ·{" "}
                         {funnel._count.events} events ·{" "}
                         {funnel._count.experiments} tests
@@ -393,55 +398,54 @@ export function FunnelManager({ orgId, initialFunnels }: Props) {
                     </div>
                   </div>
                   <div className="flex items-center gap-1">
-                    <button
+                    <Button
+                      variant="ghost"
+                      size="icon-xs"
                       onClick={(e) => {
                         e.stopPropagation();
                         toggleFunnel(funnel.id, funnel.isActive);
                       }}
-                      className={cn(
-                        "rounded-md p-1.5 transition-colors",
-                        funnel.isActive
-                          ? "text-green hover:bg-green-dim"
-                          : "text-text-dim hover:bg-surface-elevated"
-                      )}
+                      className={funnel.isActive ? "text-green hover:text-green" : "text-muted-foreground"}
                     >
                       <Power className="h-3.5 w-3.5" />
-                    </button>
-                    <button
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon-xs"
                       onClick={(e) => {
                         e.stopPropagation();
                         deleteFunnel(funnel.id);
                       }}
-                      className="rounded-md p-1.5 text-text-dim transition-colors hover:bg-red-dim hover:text-red"
+                      className="text-muted-foreground hover:text-red"
                     >
                       <Trash2 className="h-3.5 w-3.5" />
-                    </button>
+                    </Button>
                     {isExpanded ? (
-                      <ChevronUp className="h-4 w-4 text-text-dim" />
+                      <ChevronUp className="h-4 w-4 text-muted-foreground/60" />
                     ) : (
-                      <ChevronDown className="h-4 w-4 text-text-dim" />
+                      <ChevronDown className="h-4 w-4 text-muted-foreground/60" />
                     )}
                   </div>
                 </div>
 
                 {/* Expanded steps */}
                 {isExpanded && (
-                  <div className="border-t border-border px-4 pb-4 pt-3">
+                  <div className="border-t border-border px-4 pb-4 pt-3 animate-fade-in">
                     <div className="space-y-1.5">
                       {funnel.steps.map((step, i) => (
                         <div
                           key={step.id || i}
-                          className="flex items-center gap-3 rounded-md bg-bg px-3 py-2"
+                          className="flex items-center gap-3 rounded-lg bg-background px-3 py-2"
                         >
-                          <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-surface-elevated text-[10px] font-medium text-text-dim">
+                          <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-secondary text-[10px] font-medium text-muted-foreground">
                             {i + 1}
                           </span>
-                          <span className="text-sm">{step.name}</span>
-                          <span className="rounded bg-surface-elevated px-1.5 py-0.5 text-[10px] text-text-dim">
+                          <span className="text-sm text-foreground">{step.name}</span>
+                          <Badge variant="secondary" className="text-[10px]">
                             {step.type.replace(/_/g, " ")}
-                          </span>
+                          </Badge>
                           {step.urlPattern && (
-                            <code className="ml-auto font-mono text-[11px] text-text-dim">
+                            <code className="ml-auto font-mono text-[11px] text-muted-foreground/60">
                               {step.urlPattern}
                             </code>
                           )}
@@ -450,7 +454,7 @@ export function FunnelManager({ orgId, initialFunnels }: Props) {
                     </div>
                   </div>
                 )}
-              </div>
+              </Card>
             );
           })}
         </div>

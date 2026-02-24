@@ -12,8 +12,8 @@ export default async function FeedPage({
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-xl font-semibold tracking-tight">Live Feed</h1>
-        <p className="text-sm text-text-muted">
+        <h1 className="text-xl font-semibold tracking-tight text-foreground">Live Feed</h1>
+        <p className="text-sm text-muted-foreground">
           Real-time stream of all tracked events
         </p>
       </div>

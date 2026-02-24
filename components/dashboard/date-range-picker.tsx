@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
-import { cn } from "@/lib/cn";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const presets = [
   { label: "Today", value: "today" },
@@ -23,21 +23,18 @@ export function DateRangePicker() {
   }
 
   return (
-    <div className="flex items-center gap-1 rounded-lg border border-border bg-surface p-1">
-      {presets.map((preset) => (
-        <button
-          key={preset.value}
-          onClick={() => setRange(preset.value)}
-          className={cn(
-            "rounded-md px-3 py-1.5 text-xs font-medium transition-colors",
-            current === preset.value
-              ? "bg-accent-dim text-accent"
-              : "text-text-muted hover:text-text"
-          )}
-        >
-          {preset.label}
-        </button>
-      ))}
-    </div>
+    <Tabs value={current} onValueChange={setRange}>
+      <TabsList className="h-8">
+        {presets.map((preset) => (
+          <TabsTrigger
+            key={preset.value}
+            value={preset.value}
+            className="px-3 text-xs"
+          >
+            {preset.label}
+          </TabsTrigger>
+        ))}
+      </TabsList>
+    </Tabs>
   );
 }

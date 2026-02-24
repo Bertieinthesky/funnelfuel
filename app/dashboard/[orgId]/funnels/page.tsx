@@ -2,6 +2,7 @@ import { FunnelCard } from "@/components/dashboard/funnel-card";
 import { DateRangePicker } from "@/components/dashboard/date-range-picker";
 import { parseDateRange } from "@/lib/dashboard/date-range";
 import { getFunnelOverview } from "@/lib/dashboard/queries";
+import { Card } from "@/components/ui/card";
 
 export default async function FunnelsPage({
   params,
@@ -22,8 +23,8 @@ export default async function FunnelsPage({
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-semibold tracking-tight">Funnels</h1>
-          <p className="text-sm text-text-muted">
+          <h1 className="text-xl font-semibold tracking-tight text-foreground">Funnels</h1>
+          <p className="text-sm text-muted-foreground">
             {funnels.length} funnel{funnels.length !== 1 ? "s" : ""} configured
           </p>
         </div>
@@ -31,17 +32,19 @@ export default async function FunnelsPage({
       </div>
 
       {funnels.length === 0 ? (
-        <div className="rounded-lg border border-border bg-surface p-12 text-center">
-          <p className="text-text-muted">No funnels configured yet.</p>
-          <p className="mt-1 text-sm text-text-dim">
-            Funnels track multi-step conversion flows like opt-in → checkout → purchase.
-          </p>
-        </div>
+        <Card className="border-border py-0">
+          <div className="p-12 text-center">
+            <p className="text-muted-foreground">No funnels configured yet.</p>
+            <p className="mt-1 text-sm text-muted-foreground/60">
+              Funnels track multi-step conversion flows like opt-in → checkout → purchase.
+            </p>
+          </div>
+        </Card>
       ) : (
         <>
           {activeFunnels.length > 0 && (
             <section>
-              <h2 className="mb-3 text-sm font-medium text-text-muted">
+              <h2 className="mb-3 text-sm font-medium text-muted-foreground">
                 Active ({activeFunnels.length})
               </h2>
               <div className="grid gap-3 md:grid-cols-2">
@@ -63,7 +66,7 @@ export default async function FunnelsPage({
 
           {inactiveFunnels.length > 0 && (
             <section>
-              <h2 className="mb-3 text-sm font-medium text-text-muted">
+              <h2 className="mb-3 text-sm font-medium text-muted-foreground">
                 Inactive ({inactiveFunnels.length})
               </h2>
               <div className="grid gap-3 md:grid-cols-2">

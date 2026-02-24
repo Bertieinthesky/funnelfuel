@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/cn";
+import { Button } from "@/components/ui/button";
+import { Separator } from "@/components/ui/separator";
 import {
   LayoutDashboard,
   Radio,
@@ -30,21 +32,25 @@ export function Sidebar({ orgId, orgName }: { orgId: string; orgName: string }) 
   const base = `/dashboard/${orgId}`;
 
   return (
-    <aside className="flex w-56 shrink-0 flex-col border-r border-border bg-surface">
+    <aside className="flex w-56 shrink-0 flex-col border-r border-border bg-card">
       {/* Logo */}
-      <div className="flex h-14 items-center gap-2 border-b border-border px-4">
-        <div className="text-lg font-bold tracking-tight">
-          Funnel<span className="text-accent">Fuel</span>
+      <div className="flex h-14 items-center gap-2 px-4">
+        <div className="text-lg font-bold tracking-tight text-foreground">
+          Funnel<span className="text-primary">Fuel</span>
         </div>
       </div>
 
+      <Separator />
+
       {/* Org name */}
-      <div className="border-b border-border px-4 py-3">
-        <p className="truncate text-xs font-medium text-text-muted">{orgName}</p>
+      <div className="px-4 py-3">
+        <p className="truncate text-xs font-medium text-muted-foreground">{orgName}</p>
       </div>
 
+      <Separator />
+
       {/* Nav links */}
-      <nav className="flex-1 space-y-0.5 px-2 py-3">
+      <nav className="flex-1 space-y-1 px-2 py-3">
         {navItems.map((item) => {
           const href = `${base}${item.path}`;
           const isActive =
@@ -53,26 +59,34 @@ export function Sidebar({ orgId, orgName }: { orgId: string; orgName: string }) 
               : pathname.startsWith(href);
 
           return (
-            <Link
+            <Button
               key={item.path}
-              href={href}
+              variant="ghost"
+              size="sm"
+              asChild
               className={cn(
-                "flex items-center gap-2.5 rounded-md px-3 py-2 text-sm transition-colors",
+                "w-full justify-start gap-2.5 font-normal",
                 isActive
-                  ? "bg-accent-dim text-white"
-                  : "text-white/80 hover:bg-surface-elevated hover:text-white"
+                  ? "bg-primary/10 text-foreground hover:bg-primary/15"
+                  : "text-muted-foreground hover:bg-secondary hover:text-foreground"
               )}
             >
-              <item.icon className="h-4 w-4 shrink-0 text-accent" />
-              {item.label}
-            </Link>
+              <Link href={href}>
+                <item.icon className={cn(
+                  "h-4 w-4 shrink-0",
+                  isActive ? "text-primary" : "text-primary/60"
+                )} />
+                {item.label}
+              </Link>
+            </Button>
           );
         })}
       </nav>
 
       {/* Footer */}
-      <div className="border-t border-border px-4 py-3">
-        <p className="text-[11px] text-text-dim">FunnelFuel v0.1</p>
+      <Separator />
+      <div className="px-4 py-3">
+        <p className="text-[11px] text-muted-foreground/60">FunnelFuel v0.1</p>
       </div>
     </aside>
   );

@@ -11,6 +11,7 @@ import {
   getFunnelOverview,
   getRecentEvents,
 } from "@/lib/dashboard/queries";
+import { Card } from "@/components/ui/card";
 
 export default async function DashboardOverview({
   params,
@@ -35,8 +36,8 @@ export default async function DashboardOverview({
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-semibold tracking-tight">Overview</h1>
-          <p className="text-sm text-text-muted">Your funnel performance at a glance</p>
+          <h1 className="text-xl font-semibold tracking-tight text-foreground">Overview</h1>
+          <p className="text-sm text-muted-foreground">Your funnel performance at a glance</p>
         </div>
         <DateRangePicker />
       </div>
@@ -77,7 +78,7 @@ export default async function DashboardOverview({
 
       {/* Source Breakdown */}
       <section>
-        <h2 className="mb-3 text-sm font-medium text-text-muted">Source Performance</h2>
+        <h2 className="mb-3 text-sm font-medium text-muted-foreground">Source Performance</h2>
         <SourceTable data={sources} />
       </section>
 
@@ -85,16 +86,18 @@ export default async function DashboardOverview({
       <div className="grid gap-6 lg:grid-cols-2">
         {/* Funnels */}
         <section>
-          <h2 className="mb-3 text-sm font-medium text-text-muted">
+          <h2 className="mb-3 text-sm font-medium text-muted-foreground">
             Funnels
             {funnels.length > 0 && (
-              <span className="ml-2 text-text-dim">({funnels.length})</span>
+              <span className="ml-2 text-muted-foreground/60">({funnels.length})</span>
             )}
           </h2>
           {funnels.length === 0 ? (
-            <div className="rounded-lg border border-border bg-surface p-8 text-center text-sm text-text-muted">
-              No funnels configured yet. Create one to start tracking conversions.
-            </div>
+            <Card className="border-border py-0">
+              <div className="p-8 text-center text-sm text-muted-foreground">
+                No funnels configured yet. Create one to start tracking conversions.
+              </div>
+            </Card>
           ) : (
             <div className="space-y-3">
               {funnels.map((funnel) => (
@@ -115,7 +118,7 @@ export default async function DashboardOverview({
 
         {/* Live Feed */}
         <section>
-          <h2 className="mb-3 text-sm font-medium text-text-muted">Recent Events</h2>
+          <h2 className="mb-3 text-sm font-medium text-muted-foreground">Recent Events</h2>
           <EventFeed
             events={events.map((e) => ({
               ...e,

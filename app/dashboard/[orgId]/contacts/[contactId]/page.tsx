@@ -5,6 +5,9 @@ import { JourneyTimeline } from "@/components/dashboard/journey-timeline";
 import { cn } from "@/lib/cn";
 import { format } from "date-fns";
 import Link from "next/link";
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
 import {
   ChevronRight,
   Mail,
@@ -37,155 +40,161 @@ export default async function ContactDetailPage({
   return (
     <div className="space-y-6">
       {/* Breadcrumb */}
-      <div className="flex items-center gap-2 text-sm text-text-muted">
-        <Link href={`/dashboard/${orgId}/contacts`} className="hover:text-text">
+      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+        <Link href={`/dashboard/${orgId}/contacts`} className="hover:text-foreground transition-colors">
           Contacts
         </Link>
         <ChevronRight className="h-3 w-3" />
-        <span className="text-text">{name || contact.email || "Contact"}</span>
+        <span className="text-foreground">{name || contact.email || "Contact"}</span>
       </div>
 
       {/* Contact header */}
       <div className="grid gap-4 lg:grid-cols-3">
         {/* Info card */}
-        <div className="rounded-lg border border-border bg-surface p-5 lg:col-span-2">
-          <div className="flex items-start justify-between">
-            <div>
-              <h1 className="text-xl font-semibold tracking-tight">
-                {name || <span className="text-text-muted">Anonymous Contact</span>}
-              </h1>
-              <div className="mt-2 space-y-1">
-                {contact.email && (
-                  <div className="flex items-center gap-2 text-sm text-text-muted">
-                    <Mail className="h-3.5 w-3.5" />
-                    {contact.email}
-                  </div>
-                )}
-                {contact.phone && (
-                  <div className="flex items-center gap-2 text-sm text-text-muted">
-                    <Phone className="h-3.5 w-3.5" />
-                    {contact.phone}
-                  </div>
-                )}
-              </div>
-            </div>
-            <span
-              className={cn(
-                "rounded-full px-2.5 py-1 text-xs font-medium",
-                contact.leadQuality === "HIGH" && "bg-green-dim text-green",
-                contact.leadQuality === "MEDIUM" && "bg-yellow-dim text-yellow",
-                contact.leadQuality === "LOW" && "bg-red-dim text-red",
-                contact.leadQuality === "UNKNOWN" && "bg-surface-elevated text-text-dim"
-              )}
-            >
-              {contact.leadQuality.toLowerCase()} quality
-            </span>
-          </div>
-
-          {/* Tags */}
-          {contact.tags.length > 0 && (
-            <div className="mt-3 flex flex-wrap gap-1.5">
-              {contact.tags.map((tag) => (
-                <span
-                  key={tag}
-                  className="rounded-full bg-accent-dim px-2 py-0.5 text-xs text-accent"
-                >
-                  {tag}
-                </span>
-              ))}
-            </div>
-          )}
-
-          {/* Identity signals */}
-          {contact.identitySignals.length > 0 && (
-            <div className="mt-4 border-t border-border pt-3">
-              <p className="mb-2 text-[11px] font-medium text-text-dim">
-                IDENTITY SIGNALS
-              </p>
-              <div className="space-y-1">
-                {contact.identitySignals.map((signal, i) => (
-                  <div
-                    key={i}
-                    className="flex items-center justify-between text-xs"
-                  >
-                    <div className="flex items-center gap-2">
-                      <span className="rounded bg-surface-elevated px-1.5 py-0.5 text-[10px] text-text-dim">
-                        {signal.type}
-                      </span>
-                      <span className="text-text-muted">
-                        {signal.rawValue || "hashed"}
-                      </span>
+        <Card className="gap-0 border-border py-0 lg:col-span-2">
+          <CardContent className="p-5">
+            <div className="flex items-start justify-between">
+              <div>
+                <h1 className="text-xl font-semibold tracking-tight text-foreground">
+                  {name || <span className="text-muted-foreground">Anonymous Contact</span>}
+                </h1>
+                <div className="mt-2 space-y-1">
+                  {contact.email && (
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <Mail className="h-3.5 w-3.5" />
+                      {contact.email}
                     </div>
-                    <span className="text-text-dim">
-                      {signal.confidence}% confidence
-                    </span>
-                  </div>
+                  )}
+                  {contact.phone && (
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <Phone className="h-3.5 w-3.5" />
+                      {contact.phone}
+                    </div>
+                  )}
+                </div>
+              </div>
+              <Badge
+                variant="secondary"
+                className={cn(
+                  contact.leadQuality === "HIGH" && "bg-green-dim text-green",
+                  contact.leadQuality === "MEDIUM" && "bg-yellow-dim text-yellow",
+                  contact.leadQuality === "LOW" && "bg-red-dim text-red",
+                  contact.leadQuality === "UNKNOWN" && "bg-secondary text-muted-foreground/60"
+                )}
+              >
+                {contact.leadQuality.toLowerCase()} quality
+              </Badge>
+            </div>
+
+            {/* Tags */}
+            {contact.tags.length > 0 && (
+              <div className="mt-3 flex flex-wrap gap-1.5">
+                {contact.tags.map((tag) => (
+                  <Badge key={tag} variant="secondary" className="bg-primary/10 text-primary">
+                    {tag}
+                  </Badge>
                 ))}
               </div>
-            </div>
-          )}
+            )}
 
-          <div className="mt-3 text-[11px] text-text-dim">
-            First seen {format(new Date(contact.createdAt), "MMM d, yyyy 'at' h:mm a")}
-          </div>
-        </div>
+            {/* Identity signals */}
+            {contact.identitySignals.length > 0 && (
+              <div className="mt-4 pt-3">
+                <Separator className="mb-3" />
+                <p className="mb-2 text-[11px] font-medium uppercase tracking-wider text-muted-foreground/60">
+                  Identity Signals
+                </p>
+                <div className="space-y-1">
+                  {contact.identitySignals.map((signal, i) => (
+                    <div
+                      key={i}
+                      className="flex items-center justify-between text-xs"
+                    >
+                      <div className="flex items-center gap-2">
+                        <Badge variant="secondary" className="text-[10px]">
+                          {signal.type}
+                        </Badge>
+                        <span className="text-muted-foreground">
+                          {signal.rawValue || "hashed"}
+                        </span>
+                      </div>
+                      <span className="text-muted-foreground/60">
+                        {signal.confidence}% confidence
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div className="mt-3 text-[11px] text-muted-foreground/60">
+              First seen {format(new Date(contact.createdAt), "MMM d, yyyy 'at' h:mm a")}
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Stats cards */}
         <div className="space-y-3">
-          <div className="rounded-lg border border-border bg-surface p-4">
-            <div className="flex items-center gap-2">
-              <DollarSign className="h-4 w-4 text-green" />
-              <span className="text-xs text-text-muted">Total Revenue</span>
-            </div>
-            <p className="mt-1 text-2xl font-semibold text-green">
-              ${contact.totalRevenue.toFixed(2)}
-            </p>
-            <p className="text-[11px] text-text-dim">
-              {contact.totalPayments} payment{contact.totalPayments !== 1 ? "s" : ""}
-            </p>
-          </div>
-
-          <div className="rounded-lg border border-border bg-surface p-4">
-            <div className="flex items-center gap-2">
-              <Activity className="h-4 w-4 text-blue" />
-              <span className="text-xs text-text-muted">Activity</span>
-            </div>
-            <div className="mt-1 grid grid-cols-3 gap-2 text-center">
-              <div>
-                <p className="text-lg font-semibold">{contact._count.events}</p>
-                <p className="text-[10px] text-text-dim">events</p>
+          <Card className="gap-0 border-border py-0">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-2">
+                <DollarSign className="h-4 w-4 text-green" />
+                <span className="text-xs text-muted-foreground">Total Revenue</span>
               </div>
-              <div>
-                <p className="text-lg font-semibold">{contact._count.sessions}</p>
-                <p className="text-[10px] text-text-dim">sessions</p>
-              </div>
-              <div>
-                <p className="text-lg font-semibold">{journey.pageViews.length}</p>
-                <p className="text-[10px] text-text-dim">pages</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="rounded-lg border border-border bg-surface p-4">
-            <div className="flex items-center gap-2">
-              <Globe className="h-4 w-4 text-accent" />
-              <span className="text-xs text-text-muted">First Touch</span>
-            </div>
-            <p className="mt-1 text-sm font-medium">{firstSource}</p>
-            {firstSession?.landingPage && (
-              <p className="mt-0.5 truncate text-[11px] text-text-dim">
-                {firstSession.landingPage}
+              <p className="mt-1 text-2xl font-semibold text-green">
+                ${contact.totalRevenue.toFixed(2)}
               </p>
-            )}
-          </div>
+              <p className="text-[11px] text-muted-foreground/60">
+                {contact.totalPayments} payment{contact.totalPayments !== 1 ? "s" : ""}
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card className="gap-0 border-border py-0">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-2">
+                <Activity className="h-4 w-4 text-blue" />
+                <span className="text-xs text-muted-foreground">Activity</span>
+              </div>
+              <div className="mt-1 grid grid-cols-3 gap-2 text-center">
+                <div>
+                  <p className="text-lg font-semibold text-foreground">{contact._count.events}</p>
+                  <p className="text-[10px] text-muted-foreground/60">events</p>
+                </div>
+                <div>
+                  <p className="text-lg font-semibold text-foreground">{contact._count.sessions}</p>
+                  <p className="text-[10px] text-muted-foreground/60">sessions</p>
+                </div>
+                <div>
+                  <p className="text-lg font-semibold text-foreground">{journey.pageViews.length}</p>
+                  <p className="text-[10px] text-muted-foreground/60">pages</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="gap-0 border-border py-0">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-2">
+                <Globe className="h-4 w-4 text-primary" />
+                <span className="text-xs text-muted-foreground">First Touch</span>
+              </div>
+              <p className="mt-1 text-sm font-medium text-foreground">{firstSource}</p>
+              {firstSession?.landingPage && (
+                <p className="mt-0.5 truncate text-[11px] text-muted-foreground/60">
+                  {firstSession.landingPage}
+                </p>
+              )}
+            </CardContent>
+          </Card>
         </div>
       </div>
 
       {/* Journey Timeline */}
       <section>
-        <h2 className="mb-4 text-sm font-medium text-text-muted">
+        <h2 className="mb-4 text-sm font-medium text-muted-foreground">
           Click Journey
-          <span className="ml-2 text-text-dim">
+          <span className="ml-2 text-muted-foreground/60">
             ({journey.timeline.length} events)
           </span>
         </h2>
