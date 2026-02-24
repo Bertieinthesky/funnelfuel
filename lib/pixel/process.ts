@@ -82,8 +82,10 @@ export async function processPixelEvent(
       );
       contactId = result.contactId;
 
-      // Idempotency key: same session + same path + same hour = deduplicated
-      const externalId = `pixel-form-${payload.sessionId}-${payload.path}-${now.toISOString().slice(0, 13)}`;
+      // Idempotency key: use the original form page path so confirmation-page
+      // fallback fires deduplicate against the form-page fire.
+      const formPath = payload.data?.formPath ?? payload.path;
+      const externalId = `pixel-form-${payload.sessionId}-${formPath}-${now.toISOString().slice(0, 13)}`;
 
       await db.event
         .create({

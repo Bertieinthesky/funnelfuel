@@ -31,6 +31,7 @@ export const PixelPayloadSchema = z.object({
       contact: ContactSchema.optional(),
       formAction: z.string().optional(),
       formId: z.string().nullable().optional(),
+      formPath: z.string().optional(), // original form page path — used for dedup when firing from confirmation page
       title: z.string().optional(),
     })
     .optional(),

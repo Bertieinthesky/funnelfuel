@@ -120,6 +120,56 @@
     return Object.assign({}, stored, current); // current-page UTMs win if present
   }
 
+  // ── Pending Contact Bridge (form page → confirmation page) ───────────────────
+  // Stores captured contact data so the confirmation page can fire form_submit
+  // even if the form page's sendBeacon failed or the submit wasn't intercepted.
+  // Uses sessionStorage (primary) + a short-lived cookie (fallback for new tabs).
+  var PENDING_KEY = "_ff_pc";
+  var PENDING_TTL = 30 * 60 * 1000; // 30 minutes
+
+  function savePendingContact(contact, fromUrl, fromPath) {
+    var data = JSON.stringify({ contact: contact, fromUrl: fromUrl, fromPath: fromPath, ts: Date.now() });
+    try { sessionStorage.setItem(PENDING_KEY, data); } catch (e) {}
+    try {
+      var expires = new Date(Date.now() + PENDING_TTL).toUTCString();
+      document.cookie = PENDING_KEY + "=" + encodeURIComponent(data) + "; expires=" + expires + "; path=/; SameSite=Lax";
+    } catch (e) {}
+    log("Pending contact saved:", contact.email || contact.phone);
+  }
+
+  function clearPendingContact() {
+    try { sessionStorage.removeItem(PENDING_KEY); } catch (e) {}
+    try { document.cookie = PENDING_KEY + "=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/"; } catch (e) {}
+  }
+
+  function getPendingContact() {
+    try {
+      var raw = sessionStorage.getItem(PENDING_KEY);
+      if (raw) return JSON.parse(raw);
+    } catch (e) {}
+    try {
+      var match = document.cookie.match(new RegExp("(?:^|; )" + PENDING_KEY + "=([^;]*)"));
+      if (match) return JSON.parse(decodeURIComponent(match[1]));
+    } catch (e) {}
+    return null;
+  }
+
+  function checkPendingContact() {
+    var pending = getPendingContact();
+    if (!pending) return;
+    if (Date.now() - pending.ts > PENDING_TTL) { clearPendingContact(); return; }
+    // Same page = form page reloaded, not a confirmation page — don't re-fire
+    if (pending.fromPath === window.location.pathname) return;
+    clearPendingContact();
+    log("Confirmation page detected — firing form_submit from pending contact");
+    send("form_submit", {
+      contact: pending.contact,
+      formAction: pending.fromUrl,
+      formId: null,
+      formPath: pending.fromPath, // tells server to use this path for dedup key
+    });
+  }
+
   // ── Device Fingerprint ───────────────────────────────────────────────────────
   // Not used for cross-site tracking — only for stitching sessions within our system
   function getFingerprint() {
@@ -247,6 +297,7 @@
       log("Extracted contact:", JSON.stringify(contact));
       if (contact.email || contact.phone) {
         _capturedForms.add(form);
+        savePendingContact(contact, form.action || window.location.href, window.location.pathname);
         log("Sending form_submit →", ENDPOINT);
         send("form_submit", {
           contact: contact,
@@ -272,25 +323,63 @@
     }, true);
 
     // Button click interceptor — catches AJAX-based builders (ClickFunnels 2.0,
-    // Kartra, etc.) that intercept clicks and submit via fetch without firing submit
+    // Kartra, etc.) that intercept clicks and submit via fetch without firing submit.
+    // Also catches ClickFunnels Classic <a href="#submit-form"> links.
     document.addEventListener("click", function (e) {
       var el = e.target;
       // Walk up the DOM in case the click landed on an icon inside the button
       for (var i = 0; i < 5 && el && el !== document.body; i++) {
         var tag = el.tagName;
         var type = (el.type || "").toLowerCase();
+        var href = el.getAttribute ? (el.getAttribute("href") || "") : "";
+        var isCFClassicLink = tag === "A" && href.indexOf("#submit") !== -1;
         if (
           (tag === "BUTTON" && (type === "submit" || type === "" || !el.type)) ||
-          (tag === "INPUT" && type === "submit")
+          (tag === "INPUT" && type === "submit") ||
+          isCFClassicLink
         ) {
           var form = el.form || el.closest("form");
           log("Submit button click detected, form#" + (form ? form.id || "(no id)" : "not found"));
-          if (form) captureForm(form);
+          if (form) {
+            captureForm(form);
+          } else {
+            // ClickFunnels Classic: no <form> wrapper — scan all named inputs on the page
+            captureInputsFromPage();
+          }
           break;
         }
         el = el.parentElement;
       }
     }, true);
+  }
+
+  // Fallback for builders with no <form> element (ClickFunnels Classic)
+  function captureInputsFromPage() {
+    log("No form element found — scanning page inputs (CF Classic mode)");
+    var map = {};
+    document.querySelectorAll("input[name], select[name], textarea[name]").forEach(function(input) {
+      if (input.name && map[input.name] === undefined) {
+        map[input.name] = input.value || "";
+      }
+    });
+    log("Page inputs found:", Object.keys(map).join(", ") || "(none)");
+    var fakeFormData = {
+      get: function(name) { return map[name] !== undefined ? map[name] : null; },
+      forEach: function(cb) { for (var k in map) cb(map[k], k); }
+    };
+    var contact = extractFromFormData(fakeFormData);
+    log("Extracted contact:", JSON.stringify(contact));
+    if (contact.email || contact.phone) {
+      savePendingContact(contact, window.location.href, window.location.pathname);
+      log("Sending form_submit (no-form mode) →", ENDPOINT);
+      send("form_submit", {
+        contact: contact,
+        formAction: window.location.href,
+        formId: null,
+      });
+    } else {
+      log("No email or phone found in page inputs. Check field names above.");
+    }
   }
 
   // ── SPA Navigation Tracking ──────────────────────────────────────────────────
@@ -370,6 +459,7 @@
   // ── Initialize ───────────────────────────────────────────────────────────────
   log("Initialized — orgKey:", orgKey, "| sessionId:", SESSION_ID, "| endpoint:", ENDPOINT);
   persistUtms(parseUtms());
+  checkPendingContact(); // fire form_submit if arriving from a form page
   send("page_view", { title: document.title });
   interceptForms();
   trackNavigation();
