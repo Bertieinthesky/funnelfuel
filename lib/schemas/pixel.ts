@@ -25,8 +25,12 @@ export const PixelPayloadSchema = z.object({
   fingerprint: z.string().min(1, "fingerprint is required"),
   // Contact ID from email click-through stitching (?ff_cid=...)
   contactId: z.string().optional(),
-  // Email from click-through stitching (?ff_email= or ?he=)
+  // Email from click-through stitching (?ffc= or ?he=)
   clickEmail: z.string().email().optional(),
+  // FunnelFuel source tracking (?ffs=email, ?ffs=instagram, etc.)
+  ffSource: z.string().max(100).optional(),
+  // FunnelFuel title tracking (?fft=welcome-day-3, etc.)
+  ffTitle: z.string().max(200).optional(),
   type: z.enum(["page_view", "form_submit"]),
   url: z.string().url("url must be a valid URL"),
   path: z.string().min(1),

@@ -65,6 +65,8 @@ export async function processPixelEvent(
       lastSeen: now,
       visitCount: 1,
       ...(adClickJson ? { adClicks: adClickJson } : {}),
+      ...(payload.ffSource ? { ffSource: payload.ffSource } : {}),
+      ...(payload.ffTitle ? { ffTitle: payload.ffTitle } : {}),
     },
     update: {
       lastSeen: now,
@@ -73,6 +75,9 @@ export async function processPixelEvent(
       ...(isNewVisit ? { visitCount: { increment: 1 } } : {}),
       // Merge ad clicks — don't overwrite existing ones (first-touch wins)
       ...(adClickJson && !existing ? { adClicks: adClickJson } : {}),
+      // First-touch source/title — don't overwrite
+      ...(payload.ffSource && !existing?.id ? { ffSource: payload.ffSource } : {}),
+      ...(payload.ffTitle && !existing?.id ? { ffTitle: payload.ffTitle } : {}),
     },
   });
 

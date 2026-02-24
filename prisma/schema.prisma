@@ -141,6 +141,10 @@ model Session {
   fingerprint String?
   // Ad platform click IDs: { fbclid, gclid, ttclid, ... }
   adClicks    Json?
+  // FunnelFuel source tracking: email, instagram, youtube, sms, etc.
+  ffSource    String?
+  // FunnelFuel title: which specific email, post, video, etc.
+  ffTitle     String?
 
   firstSeen  DateTime @default(now())
   lastSeen   DateTime @default(now())

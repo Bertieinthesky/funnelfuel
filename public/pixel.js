@@ -122,13 +122,16 @@
     return Object.assign({}, stored, current); // current-page UTMs win if present
   }
 
-  // ── Email click-through stitching ──────────────────────────────────────────
-  // Supports two modes:
-  //   ?ff_cid=CONTACT_ID  — direct contact ID (if synced to email platform)
-  //   ?ff_email=john@x.com — email lookup (works with any email platform's merge tag)
-  // Both are stored in cookies so every subsequent page view on this browser
-  // is linked to the known contact — even without a form submission.
-  var EMAIL_COOKIE = "_ff_em";
+  // ── FunnelFuel Click-Through Parameters ────────────────────────────────────
+  //   ?ffc=john@x.com   — contact email (cross-device stitching)
+  //   ?ffs=email         — source (email, instagram, youtube, sms, podcast, etc.)
+  //   ?fft=welcome-day-3 — title (which specific email, post, video, etc.)
+  //   ?ff_cid=CONTACT_ID — direct contact ID (if synced to email platform)
+  //   ?he=john@x.com    — Hyros compat (alias for ffc)
+  // All stored in cookies so they persist across pages on this browser.
+  var FFC_COOKIE = "_ff_c";   // contact email
+  var FFS_COOKIE = "_ff_s";   // source
+  var FFT_COOKIE = "_ff_t";   // title
 
   function captureClickThrough() {
     var params = new URLSearchParams(window.location.search);
@@ -140,16 +143,32 @@
       log("Contact ID captured from URL:", cid);
     }
 
-    // Email from click-through (ff_email or he for Hyros compat)
-    var email = params.get("ff_email") || params.get("he");
+    // Contact email (ffc or he for Hyros compat)
+    var email = params.get("ffc") || params.get("he");
     if (email) {
-      setCookie(EMAIL_COOKIE, email, COOKIE_DAYS);
+      setCookie(FFC_COOKIE, email, COOKIE_DAYS);
       log("Click-through email captured:", email);
+    }
+
+    // Source
+    var source = params.get("ffs");
+    if (source) {
+      setCookie(FFS_COOKIE, source, COOKIE_DAYS);
+      log("Click-through source:", source);
+    }
+
+    // Title
+    var title = params.get("fft");
+    if (title) {
+      setCookie(FFT_COOKIE, title, COOKIE_DAYS);
+      log("Click-through title:", title);
     }
 
     return {
       contactId: cid || getCookie(CID_COOKIE) || null,
-      email: email || getCookie(EMAIL_COOKIE) || null,
+      email: email || getCookie(FFC_COOKIE) || null,
+      source: source || getCookie(FFS_COOKIE) || null,
+      title: title || getCookie(FFT_COOKIE) || null,
     };
   }
 
@@ -586,6 +605,8 @@
       fingerprint: FINGERPRINT,
       contactId: CLICK_THROUGH.contactId || undefined,
       clickEmail: CLICK_THROUGH.email || undefined,
+      ffSource: CLICK_THROUGH.source || undefined,
+      ffTitle: CLICK_THROUGH.title || undefined,
       type: type,
       url: window.location.href,
       path: window.location.pathname,
