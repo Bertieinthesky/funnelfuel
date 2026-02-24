@@ -10,6 +10,7 @@ import {
   GitBranch,
   Users,
   Activity,
+  Table2,
   Settings,
 } from "lucide-react";
 
@@ -20,6 +21,7 @@ const navItems = [
   { label: "Funnels", icon: Globe, path: "/funnels" },
   { label: "Split Tests", icon: GitBranch, path: "/split-tests" },
   { label: "Contacts", icon: Users, path: "/contacts" },
+  { label: "Data Table", icon: Table2, path: "/data-table" },
   { label: "Setup", icon: Settings, path: "/setup" },
 ];
 

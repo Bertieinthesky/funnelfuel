@@ -309,6 +309,7 @@ export interface ContactFilters {
   search?: string;
   source?: string;
   title?: string;
+  tag?: string;
   eventType?: EventType;
   leadQuality?: string;
   dateFrom?: Date;
@@ -344,6 +345,11 @@ export async function getContacts(
       ...(filters.dateFrom ? { gte: filters.dateFrom } : {}),
       ...(filters.dateTo ? { lte: filters.dateTo } : {}),
     };
+  }
+
+  // Tag filter
+  if (filters.tag) {
+    where.tags = { has: filters.tag };
   }
 
   // Source/title filter: contacts who have a session with that source/title
@@ -571,7 +577,7 @@ export async function getContactJourney(orgId: string, contactId: string) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 export async function getFilterOptions(orgId: string) {
-  const [sources, titles] = await Promise.all([
+  const [sources, titles, tagResults, funnels, experiments] = await Promise.all([
     db.session.findMany({
       where: { organizationId: orgId, ffSource: { not: null } },
       select: { ffSource: true },
@@ -582,10 +588,29 @@ export async function getFilterOptions(orgId: string) {
       select: { ffTitle: true },
       distinct: ["ffTitle"],
     }),
+    db.$queryRaw<{ tag: string }[]>`
+      SELECT DISTINCT unnest(tags) as tag
+      FROM contacts
+      WHERE "organizationId" = ${orgId}
+      ORDER BY tag
+    `,
+    db.funnel.findMany({
+      where: { organizationId: orgId },
+      select: { id: true, name: true },
+      orderBy: { name: "asc" },
+    }),
+    db.experiment.findMany({
+      where: { organizationId: orgId },
+      select: { id: true, name: true },
+      orderBy: { name: "asc" },
+    }),
   ]);
 
   return {
     sources: sources.map((s) => s.ffSource!).filter(Boolean),
     titles: titles.map((t) => t.ffTitle!).filter(Boolean),
+    tags: tagResults.map((t) => t.tag),
+    funnels: funnels.map((f) => ({ id: f.id, name: f.name })),
+    experiments: experiments.map((e) => ({ id: e.id, name: e.name })),
   };
 }

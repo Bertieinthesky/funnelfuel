@@ -22,6 +22,7 @@ export default async function ContactsPage({
   if (sp.q) filters.search = sp.q;
   if (sp.source) filters.source = sp.source;
   if (sp.title) filters.title = sp.title;
+  if (sp.tag) filters.tag = sp.tag;
   if (sp.quality) filters.leadQuality = sp.quality;
   if (sp.eventType && sp.eventType in EventType) {
     filters.eventType = sp.eventType as EventType;
@@ -48,8 +49,10 @@ export default async function ContactsPage({
       </div>
 
       <ContactFiltersUI
+        orgId={orgId}
         sources={filterOptions.sources}
         titles={filterOptions.titles}
+        tags={filterOptions.tags}
       />
 
       {contacts.length === 0 ? (

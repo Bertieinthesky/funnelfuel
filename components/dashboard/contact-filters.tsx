@@ -1,13 +1,15 @@
 "use client";
 
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { cn } from "@/lib/cn";
-import { Search, X } from "lucide-react";
+import { Search, X, Download } from "lucide-react";
 import { useState } from "react";
 
 interface ContactFiltersProps {
+  orgId: string;
   sources: string[];
   titles: string[];
+  tags: string[];
 }
 
 const eventTypes = [
@@ -30,7 +32,7 @@ const qualityOptions = [
   { label: "Unknown", value: "UNKNOWN" },
 ];
 
-export function ContactFilters({ sources, titles }: ContactFiltersProps) {
+export function ContactFilters({ orgId, sources, titles, tags }: ContactFiltersProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [searchInput, setSearchInput] = useState(searchParams.get("q") || "");
@@ -60,9 +62,12 @@ export function ContactFilters({ sources, titles }: ContactFiltersProps) {
     searchParams.get("q") ||
     searchParams.get("source") ||
     searchParams.get("title") ||
+    searchParams.get("tag") ||
     searchParams.get("eventType") ||
     searchParams.get("quality") ||
     searchParams.get("range");
+
+  const exportUrl = `/api/dashboard/${orgId}/contacts/export?${searchParams.toString()}`;
 
   return (
     <div className="space-y-3">
@@ -84,6 +89,13 @@ export function ContactFilters({ sources, titles }: ContactFiltersProps) {
         >
           Search
         </button>
+        <a
+          href={exportUrl}
+          className="flex items-center gap-1.5 rounded-lg border border-border px-3 py-2 text-xs text-text-muted transition-colors hover:text-text"
+        >
+          <Download className="h-3.5 w-3.5" />
+          Export CSV
+        </a>
       </form>
 
       {/* Filter row */}
@@ -98,6 +110,16 @@ export function ContactFilters({ sources, titles }: ContactFiltersProps) {
           onChange={(v) => setParam("quality", v)}
           options={qualityOptions}
         />
+        {tags.length > 0 && (
+          <FilterSelect
+            value={searchParams.get("tag") || ""}
+            onChange={(v) => setParam("tag", v)}
+            options={[
+              { label: "All Tags", value: "" },
+              ...tags.map((t) => ({ label: t, value: t })),
+            ]}
+          />
+        )}
         {sources.length > 0 && (
           <FilterSelect
             value={searchParams.get("source") || ""}
