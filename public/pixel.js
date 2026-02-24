@@ -122,18 +122,35 @@
     return Object.assign({}, stored, current); // current-page UTMs win if present
   }
 
-  // ── Contact ID from email click-through (ff_cid=CONTACT_ID) ──────────────────
-  // When a known contact clicks an email link containing ?ff_cid=..., the pixel
-  // stores it in a cookie so every subsequent event on this browser is linked to
-  // that contact — even if they never fill out a form on this device.
-  function captureContactId() {
+  // ── Email click-through stitching ──────────────────────────────────────────
+  // Supports two modes:
+  //   ?ff_cid=CONTACT_ID  — direct contact ID (if synced to email platform)
+  //   ?ff_email=john@x.com — email lookup (works with any email platform's merge tag)
+  // Both are stored in cookies so every subsequent page view on this browser
+  // is linked to the known contact — even without a form submission.
+  var EMAIL_COOKIE = "_ff_em";
+
+  function captureClickThrough() {
     var params = new URLSearchParams(window.location.search);
+
+    // Direct contact ID
     var cid = params.get("ff_cid");
     if (cid) {
       setCookie(CID_COOKIE, cid, COOKIE_DAYS);
       log("Contact ID captured from URL:", cid);
     }
-    return cid || getCookie(CID_COOKIE) || null;
+
+    // Email from click-through (ff_email or he for Hyros compat)
+    var email = params.get("ff_email") || params.get("he");
+    if (email) {
+      setCookie(EMAIL_COOKIE, email, COOKIE_DAYS);
+      log("Click-through email captured:", email);
+    }
+
+    return {
+      contactId: cid || getCookie(CID_COOKIE) || null,
+      email: email || getCookie(EMAIL_COOKIE) || null,
+    };
   }
 
   // ── Ad Click Parameters ───────────────────────────────────────────────────────
@@ -558,7 +575,7 @@
   // ── Event Sending ────────────────────────────────────────────────────────────
   var SESSION_ID = getSessionId();
   var FINGERPRINT = getFingerprint();
-  var CONTACT_ID = captureContactId();
+  var CLICK_THROUGH = captureClickThrough();
   captureAdClicks();
 
   function send(type, data) {
@@ -567,7 +584,8 @@
       orgKey: orgKey,
       sessionId: SESSION_ID,
       fingerprint: FINGERPRINT,
-      contactId: CONTACT_ID || undefined,
+      contactId: CLICK_THROUGH.contactId || undefined,
+      clickEmail: CLICK_THROUGH.email || undefined,
       type: type,
       url: window.location.href,
       path: window.location.pathname,

@@ -1,6 +1,7 @@
 // Pixel Event Processor
 // Handles page_view and form_submit events from the browser pixel.
 
+import { createHash } from "crypto";
 import { db } from "@/lib/db";
 import { stitchIdentity } from "@/lib/identity/stitch";
 import { matchAndFireUrlRules } from "@/lib/url-rules/match";
@@ -77,14 +78,34 @@ export async function processPixelEvent(
 
   let contactId: string | null = session.contactId;
 
-  // 2b. ff_cid click-through stitching: link session to known contact
-  if (payload.contactId && !contactId) {
-    const knownContact = await db.contact.findFirst({
-      where: { id: payload.contactId, organizationId },
-      select: { id: true },
-    });
-    if (knownContact) {
-      contactId = knownContact.id;
+  // 2b. Click-through stitching: link session to known contact
+  // Priority: ff_cid (direct ID) > ff_email (email lookup)
+  if (!contactId && (payload.contactId || payload.clickEmail)) {
+    let matchedId: string | null = null;
+
+    // Try direct contact ID first
+    if (payload.contactId) {
+      const byId = await db.contact.findFirst({
+        where: { id: payload.contactId, organizationId },
+        select: { id: true },
+      });
+      if (byId) matchedId = byId.id;
+    }
+
+    // Fall back to email lookup via identity signal hash
+    if (!matchedId && payload.clickEmail) {
+      const emailHash = createHash("sha256")
+        .update(payload.clickEmail.toLowerCase().trim())
+        .digest("hex");
+      const byEmail = await db.identitySignal.findFirst({
+        where: { type: "EMAIL", value: emailHash, contact: { organizationId } },
+        select: { contactId: true },
+      });
+      if (byEmail) matchedId = byEmail.contactId;
+    }
+
+    if (matchedId) {
+      contactId = matchedId;
       await db.session.update({
         where: { id: session.id },
         data: { contactId },
