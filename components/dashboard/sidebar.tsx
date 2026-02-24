@@ -59,11 +59,11 @@ export function Sidebar({ orgId, orgName }: { orgId: string; orgName: string }) 
               className={cn(
                 "flex items-center gap-2.5 rounded-md px-3 py-2 text-sm transition-colors",
                 isActive
-                  ? "bg-accent-dim text-accent"
-                  : "text-text-muted hover:bg-surface-elevated hover:text-text"
+                  ? "bg-accent-dim text-white"
+                  : "text-white/80 hover:bg-surface-elevated hover:text-white"
               )}
             >
-              <item.icon className="h-4 w-4 shrink-0" />
+              <item.icon className="h-4 w-4 shrink-0 text-accent" />
               {item.label}
             </Link>
           );
