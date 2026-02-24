@@ -3,7 +3,8 @@ import { KpiCard } from "@/components/dashboard/kpi-card";
 import { SourceTable } from "@/components/dashboard/source-table";
 import { FunnelCard } from "@/components/dashboard/funnel-card";
 import { EventFeed } from "@/components/dashboard/event-feed";
-import { DateRangePicker, parseDateRange } from "@/components/dashboard/date-range-picker";
+import { DateRangePicker } from "@/components/dashboard/date-range-picker";
+import { parseDateRange } from "@/lib/dashboard/date-range";
 import {
   getKpiMetrics,
   getSourceBreakdown,

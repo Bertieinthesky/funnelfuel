@@ -1,5 +1,6 @@
 import { SourceTable } from "@/components/dashboard/source-table";
-import { DateRangePicker, parseDateRange } from "@/components/dashboard/date-range-picker";
+import { DateRangePicker } from "@/components/dashboard/date-range-picker";
+import { parseDateRange } from "@/lib/dashboard/date-range";
 import { getSourceBreakdown } from "@/lib/dashboard/queries";
 
 export default async function SourcesPage({

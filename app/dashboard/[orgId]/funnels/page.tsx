@@ -1,5 +1,6 @@
 import { FunnelCard } from "@/components/dashboard/funnel-card";
-import { DateRangePicker, parseDateRange } from "@/components/dashboard/date-range-picker";
+import { DateRangePicker } from "@/components/dashboard/date-range-picker";
+import { parseDateRange } from "@/lib/dashboard/date-range";
 import { getFunnelOverview } from "@/lib/dashboard/queries";
 
 export default async function FunnelsPage({

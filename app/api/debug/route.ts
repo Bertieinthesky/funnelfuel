@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { parseDateRange } from "@/components/dashboard/date-range-picker";
+import { parseDateRange } from "@/lib/dashboard/date-range";
 import { getKpiMetrics, getRecentEvents } from "@/lib/dashboard/queries";
 
 export async function GET(req: NextRequest) {

@@ -1,4 +1,5 @@
-import { DateRangePicker, parseDateRange } from "@/components/dashboard/date-range-picker";
+import { DateRangePicker } from "@/components/dashboard/date-range-picker";
+import { parseDateRange } from "@/lib/dashboard/date-range";
 import { getSplitTestOverview } from "@/lib/dashboard/queries";
 import { cn } from "@/lib/cn";
 import { GitBranch, ExternalLink } from "lucide-react";

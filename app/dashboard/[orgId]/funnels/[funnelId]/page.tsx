@@ -1,6 +1,7 @@
 import { db } from "@/lib/db";
 import { notFound } from "next/navigation";
-import { DateRangePicker, parseDateRange } from "@/components/dashboard/date-range-picker";
+import { DateRangePicker } from "@/components/dashboard/date-range-picker";
+import { parseDateRange } from "@/lib/dashboard/date-range";
 import { cn } from "@/lib/cn";
 import { ChevronRight, GitBranch } from "lucide-react";
 import Link from "next/link";
