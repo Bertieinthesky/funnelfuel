@@ -20,6 +20,11 @@ import { deterministicId } from "@/lib/idempotency";
 import { sanitizeContact } from "@/lib/schemas/webhooks";
 import { EventSource, EventType } from "@prisma/client";
 
+// CF pings the URL with GET when you save the webhook to verify it's reachable
+export async function GET() {
+  return NextResponse.json({ ok: true });
+}
+
 export async function POST(req: NextRequest) {
   const url = new URL(req.url);
   const organizationId = url.searchParams.get("orgId");
