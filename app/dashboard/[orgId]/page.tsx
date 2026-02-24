@@ -120,6 +120,7 @@ export default async function DashboardOverview({
         <section>
           <h2 className="mb-3 text-sm font-medium text-muted-foreground">Recent Events</h2>
           <EventFeed
+            orgId={orgId}
             events={events.map((e) => ({
               ...e,
               timestamp: e.timestamp.toISOString(),

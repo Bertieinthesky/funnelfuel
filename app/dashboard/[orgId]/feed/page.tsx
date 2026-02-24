@@ -19,6 +19,7 @@ export default async function FeedPage({
       </div>
 
       <EventFeed
+        orgId={orgId}
         events={events.map((e) => ({
           ...e,
           timestamp: e.timestamp.toISOString(),

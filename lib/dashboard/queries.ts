@@ -224,7 +224,8 @@ export async function getRecentEvents(
       confidence: true,
       data: true,
       timestamp: true,
-      contact: { select: { email: true, firstName: true, lastName: true } },
+      contactId: true,
+      contact: { select: { email: true, firstName: true, lastName: true, phone: true, leadQuality: true, tags: true } },
       session: { select: { ffSource: true, utmSource: true, landingPage: true } },
     },
     orderBy: { timestamp: "desc" },
@@ -613,4 +614,75 @@ export async function getFilterOptions(orgId: string) {
     funnels: funnels.map((f) => ({ id: f.id, name: f.name })),
     experiments: experiments.map((e) => ({ id: e.id, name: e.name })),
   };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CONTACTS PER DAY (for chart)
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface ContactsPerDayFilters {
+  eventType?: EventType;
+  tag?: string;
+  source?: string;
+}
+
+export async function getContactsPerDay(
+  orgId: string,
+  days: number,
+  filters: ContactsPerDayFilters = {}
+): Promise<{ date: string; count: number }[]> {
+  const since = new Date();
+  since.setDate(since.getDate() - days);
+  since.setHours(0, 0, 0, 0);
+
+  // Build where clause
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const where: Record<string, unknown> = {
+    organizationId: orgId,
+    createdAt: { gte: since },
+  };
+
+  if (filters.eventType) {
+    where.events = { some: { type: filters.eventType } };
+  }
+
+  if (filters.tag) {
+    where.tags = { has: filters.tag };
+  }
+
+  if (filters.source) {
+    where.sessions = {
+      some: {
+        OR: [
+          { ffSource: filters.source },
+          { utmSource: filters.source },
+        ],
+      },
+    };
+  }
+
+  const contacts = await db.contact.findMany({
+    where: where as any,
+    select: { createdAt: true },
+    orderBy: { createdAt: "asc" },
+  });
+
+  // Pre-fill all dates in range with 0
+  const counts = new Map<string, number>();
+  const current = new Date(since);
+  const today = new Date();
+  today.setHours(23, 59, 59, 999);
+  while (current <= today) {
+    counts.set(current.toISOString().split("T")[0], 0);
+    current.setDate(current.getDate() + 1);
+  }
+
+  for (const contact of contacts) {
+    const dateKey = contact.createdAt.toISOString().split("T")[0];
+    counts.set(dateKey, (counts.get(dateKey) || 0) + 1);
+  }
+
+  return Array.from(counts.entries())
+    .map(([date, count]) => ({ date, count }))
+    .sort((a, b) => a.date.localeCompare(b.date));
 }

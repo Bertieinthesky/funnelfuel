@@ -1,7 +1,7 @@
 import { getFilterOptions } from "@/lib/dashboard/queries";
-import { DataTableBuilder } from "@/components/dashboard/data-table-builder";
+import { ReportBuilder } from "@/components/dashboard/report-builder";
 
-export default async function DataTablePage({
+export default async function ReportPage({
   params,
 }: {
   params: Promise<{ orgId: string }>;
@@ -12,12 +12,12 @@ export default async function DataTablePage({
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-xl font-semibold tracking-tight text-foreground">Data Table</h1>
+        <h1 className="text-xl font-semibold tracking-tight text-foreground">Report</h1>
         <p className="text-sm text-muted-foreground">
           Build custom views of your data with flexible grouping and metrics
         </p>
       </div>
-      <DataTableBuilder orgId={orgId} filterOptions={options} />
+      <ReportBuilder orgId={orgId} filterOptions={options} />
     </div>
   );
 }

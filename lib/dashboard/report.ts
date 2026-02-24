@@ -15,7 +15,7 @@ export type MetricKey =
   | "revenue"
   | "convRate";
 
-export interface DataTableFilters {
+export interface ReportFilters {
   dateFrom?: string;
   dateTo?: string;
   tags?: string[];
@@ -25,19 +25,19 @@ export interface DataTableFilters {
   leadQuality?: string;
 }
 
-export interface DataTableConfig {
+export interface ReportConfig {
   groupBy: GroupByDimension;
   metrics: MetricKey[];
-  filters: DataTableFilters;
+  filters: ReportFilters;
 }
 
-export interface DataTableRow {
+export interface ReportRow {
   dimension: string;
   [key: string]: string | number;
 }
 
-export interface DataTableResult {
-  rows: DataTableRow[];
+export interface ReportResult {
+  rows: ReportRow[];
   totals: Record<string, number>;
 }
 
@@ -51,10 +51,10 @@ const EVENT_METRIC_MAP: Record<string, string> = {
   purchases: "PURCHASE",
 };
 
-export async function getDataTableResults(
+export async function getReportResults(
   orgId: string,
-  config: DataTableConfig
-): Promise<DataTableResult> {
+  config: ReportConfig
+): Promise<ReportResult> {
   const { groupBy, metrics, filters } = config;
 
   // Date filter
@@ -207,12 +207,12 @@ export async function getDataTableResults(
   }
 
   // Calculate metrics per group
-  const rows: DataTableRow[] = [];
+  const rows: ReportRow[] = [];
   const totals: Record<string, number> = {};
   for (const m of metrics) totals[m] = 0;
 
   for (const [dimension, group] of groups) {
-    const row: DataTableRow = { dimension };
+    const row: ReportRow = { dimension };
 
     for (const m of metrics) {
       let value = 0;

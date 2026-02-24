@@ -22,6 +22,16 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip as RechartsTooltip,
+  ResponsiveContainer,
+  Cell,
+} from "recharts";
 
 const DIMENSIONS = [
   { id: "source", label: "Source" },
@@ -61,17 +71,17 @@ interface FilterOptions {
   experiments: { id: string; name: string }[];
 }
 
-interface DataTableRow {
+interface ReportRow {
   dimension: string;
   [key: string]: string | number;
 }
 
-interface DataTableResult {
-  rows: DataTableRow[];
+interface ReportResult {
+  rows: ReportRow[];
   totals: Record<string, number>;
 }
 
-export function DataTableBuilder({
+export function ReportBuilder({
   orgId,
   filterOptions,
 }: {
@@ -89,7 +99,7 @@ export function DataTableBuilder({
   const [experimentFilter, setExperimentFilter] = useState("");
   const [qualityFilter, setQualityFilter] = useState("");
   const [loading, setLoading] = useState(false);
-  const [results, setResults] = useState<DataTableResult | null>(null);
+  const [results, setResults] = useState<ReportResult | null>(null);
   const [sortCol, setSortCol] = useState<string | null>(null);
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
 
@@ -124,7 +134,7 @@ export function DataTableBuilder({
     setLoading(true);
     try {
       const { dateFrom } = getDateFilter();
-      const res = await fetch(`/api/dashboard/${orgId}/data-table`, {
+      const res = await fetch(`/api/dashboard/${orgId}/reports`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -200,7 +210,7 @@ export function DataTableBuilder({
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `data-table-${groupBy}-${new Date().toISOString().split("T")[0]}.csv`;
+    a.download = `report-${groupBy}-${new Date().toISOString().split("T")[0]}.csv`;
     a.click();
     URL.revokeObjectURL(url);
   }
@@ -219,6 +229,11 @@ export function DataTableBuilder({
   }
 
   const activeMetrics = METRICS.filter((m) => selectedMetrics.has(m.id));
+
+  // Find the first non-percent metric for the chart
+  const chartMetric = METRICS.find(
+    (m) => selectedMetrics.has(m.id) && m.format !== "percent"
+  );
 
   return (
     <div className="space-y-6">
@@ -370,7 +385,7 @@ export function DataTableBuilder({
                 Generating...
               </span>
             ) : (
-              "Generate Table"
+              "Generate Report"
             )}
           </Button>
         </CardContent>
@@ -393,6 +408,87 @@ export function DataTableBuilder({
               Export CSV
             </Button>
           </div>
+
+          {/* Bar Chart */}
+          {results.rows.length > 0 && chartMetric && (() => {
+            const chartData = getSortedRows().slice(0, 20).map((row) => ({
+              name: String(row.dimension).length > 20
+                ? String(row.dimension).slice(0, 17) + "..."
+                : String(row.dimension),
+              value: Number(row[chartMetric.id]) || 0,
+              fullName: String(row.dimension),
+            }));
+
+            return (
+              <Card className="gap-0 border-border py-0">
+                <CardContent className="p-4">
+                  <p className="mb-3 text-[11px] font-medium uppercase tracking-wider text-muted-foreground/60">
+                    {chartMetric.label} by {getDimensionLabel()}
+                  </p>
+                  <ResponsiveContainer width="100%" height={Math.max(200, chartData.length * 32)}>
+                    <BarChart
+                      data={chartData}
+                      layout="vertical"
+                      margin={{ top: 0, right: 24, bottom: 0, left: 0 }}
+                    >
+                      <CartesianGrid
+                        strokeDasharray="3 3"
+                        stroke="var(--border)"
+                        horizontal={false}
+                      />
+                      <XAxis
+                        type="number"
+                        tick={{ fill: "var(--muted-foreground)", fontSize: 11 }}
+                        axisLine={{ stroke: "var(--border)" }}
+                        tickLine={false}
+                        tickFormatter={(v: number) =>
+                          chartMetric.format === "currency"
+                            ? `$${v.toLocaleString()}`
+                            : v.toLocaleString()
+                        }
+                      />
+                      <YAxis
+                        type="category"
+                        dataKey="name"
+                        width={140}
+                        tick={{ fill: "var(--muted-foreground)", fontSize: 11 }}
+                        axisLine={false}
+                        tickLine={false}
+                      />
+                      <RechartsTooltip
+                        contentStyle={{
+                          backgroundColor: "var(--card)",
+                          border: "1px solid var(--border)",
+                          borderRadius: "8px",
+                          fontSize: 12,
+                          color: "var(--foreground)",
+                        }}
+                        formatter={(value) => {
+                          const v = Number(value ?? 0);
+                          return [
+                            chartMetric.format === "currency"
+                              ? `$${v.toLocaleString(undefined, { minimumFractionDigits: 2 })}`
+                              : v.toLocaleString(),
+                            chartMetric.label,
+                          ];
+                        }}
+                        labelFormatter={(label) => {
+                          const s = String(label);
+                          const item = chartData.find((d) => d.name === s);
+                          return item?.fullName || s;
+                        }}
+                      />
+                      <Bar dataKey="value" radius={[0, 4, 4, 0]} maxBarSize={24}>
+                        {chartData.map((_, index) => (
+                          <Cell key={index} fill="#ff6600" />
+                        ))}
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                </CardContent>
+              </Card>
+            );
+          })()}
 
           {results.rows.length === 0 ? (
             <Card className="border-border py-0">

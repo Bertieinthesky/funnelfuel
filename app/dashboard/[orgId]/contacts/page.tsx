@@ -1,6 +1,7 @@
 import { getContacts, getFilterOptions, type ContactFilters } from "@/lib/dashboard/queries";
 import { parseDateRange } from "@/lib/dashboard/date-range";
 import { ContactFilters as ContactFiltersUI } from "@/components/dashboard/contact-filters";
+import { ContactsChart } from "@/components/dashboard/contacts-chart";
 import { cn } from "@/lib/cn";
 import { formatDistanceToNow } from "date-fns";
 import { EventType } from "@prisma/client";
@@ -57,6 +58,8 @@ export default async function ContactsPage({
           {Object.keys(filters).length > 0 ? " matching filters" : " total"}
         </p>
       </div>
+
+      <ContactsChart orgId={orgId} tags={filterOptions.tags} />
 
       <ContactFiltersUI
         orgId={orgId}
