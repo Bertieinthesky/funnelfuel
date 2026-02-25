@@ -279,7 +279,7 @@ export default async function FunnelDetailPage({
       )}
 
       {/* Chart */}
-      <FunnelChart orgId={orgId} funnelId={funnelId} range={range} />
+      <FunnelChart orgId={orgId} funnelId={funnelId} range={range} metrics={allMetrics} />
 
       {/* Breakdown Table */}
       <FunnelDetailTable

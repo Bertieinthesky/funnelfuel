@@ -2,6 +2,16 @@ export function parseDateRange(range: string | null): { from: Date; to: Date } {
   const now = new Date();
   const to = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
 
+  // Custom range: "2024-01-15_2024-02-15"
+  if (range && range.includes("_")) {
+    const [fromStr, toStr] = range.split("_");
+    const from = new Date(fromStr + "T00:00:00");
+    const customTo = new Date(toStr + "T23:59:59.999");
+    if (!isNaN(from.getTime()) && !isNaN(customTo.getTime())) {
+      return { from, to: customTo };
+    }
+  }
+
   switch (range) {
     case "today": {
       const from = new Date(now.getFullYear(), now.getMonth(), now.getDate());

@@ -3,7 +3,7 @@
 import { cn } from "@/lib/cn";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Trash2, ArrowRight, Calculator, Activity, DollarSign } from "lucide-react";
+import { Plus, Trash2, ArrowRight, Calculator, Activity, DollarSign, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -79,39 +79,62 @@ interface Props {
   initialMetrics: MetricData[];
 }
 
+interface FormState {
+  name: string;
+  description: string;
+  kind: string;
+  eventType: string;
+  aggregation: string;
+  valueProperty: string;
+  numeratorMetricId: string;
+  denominatorMetricId: string;
+  productFilter: string;
+  format: string;
+}
+
+const EMPTY_FORM: FormState = {
+  name: "",
+  description: "",
+  kind: "EVENT",
+  eventType: "PAGE_VIEW",
+  aggregation: "TOTAL_EVENTS",
+  valueProperty: "",
+  numeratorMetricId: "",
+  denominatorMetricId: "",
+  productFilter: "",
+  format: "NUMBER",
+};
+
 export function MetricsManager({ orgId, initialMetrics }: Props) {
   const router = useRouter();
   const [showForm, setShowForm] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
-  const [form, setForm] = useState({
-    name: "",
-    description: "",
-    kind: "EVENT" as string,
-    eventType: "PAGE_VIEW" as string,
-    aggregation: "TOTAL_EVENTS" as string,
-    valueProperty: "",
-    numeratorMetricId: "",
-    denominatorMetricId: "",
-    productFilter: "",
-    format: "NUMBER" as string,
-  });
+  const [form, setForm] = useState<FormState>({ ...EMPTY_FORM });
 
   function resetForm() {
-    setForm({
-      name: "",
-      description: "",
-      kind: "EVENT",
-      eventType: "PAGE_VIEW",
-      aggregation: "TOTAL_EVENTS",
-      valueProperty: "",
-      numeratorMetricId: "",
-      denominatorMetricId: "",
-      productFilter: "",
-      format: "NUMBER",
-    });
+    setForm({ ...EMPTY_FORM });
+    setEditingId(null);
   }
 
-  async function createMetric() {
+  function startEdit(metric: MetricData) {
+    setForm({
+      name: metric.name,
+      description: metric.description ?? "",
+      kind: metric.kind,
+      eventType: metric.eventType ?? "PAGE_VIEW",
+      aggregation: metric.aggregation,
+      valueProperty: metric.valueProperty ?? "",
+      numeratorMetricId: metric.numeratorMetricId ?? "",
+      denominatorMetricId: metric.denominatorMetricId ?? "",
+      productFilter: metric.productFilter ?? "",
+      format: metric.format,
+    });
+    setEditingId(metric.id);
+    setShowForm(true);
+  }
+
+  async function saveMetric() {
     if (!form.name) return;
     setSaving(true);
     try {
@@ -143,8 +166,12 @@ export function MetricsManager({ orgId, initialMetrics }: Props) {
         body.denominatorMetricId = form.denominatorMetricId;
       }
 
-      const res = await fetch(`/api/dashboard/${orgId}/metrics`, {
-        method: "POST",
+      const url = editingId
+        ? `/api/dashboard/${orgId}/metrics/${editingId}`
+        : `/api/dashboard/${orgId}/metrics`;
+
+      const res = await fetch(url, {
+        method: editingId ? "PATCH" : "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
@@ -211,16 +238,27 @@ export function MetricsManager({ orgId, initialMetrics }: Props) {
             Define metrics to track across your funnels and reports
           </p>
         </div>
-        <Button size="sm" onClick={() => setShowForm(!showForm)}>
+        <Button
+          size="sm"
+          onClick={() => {
+            resetForm();
+            setShowForm(!showForm);
+          }}
+        >
           <Plus className="h-3.5 w-3.5" />
           Add Metric
         </Button>
       </div>
 
-      {/* Create form */}
+      {/* Create / Edit form */}
       {showForm && (
         <Card className="mb-4 gap-0 border-primary/30 py-0 animate-fade-in">
           <CardContent className="p-4">
+            {editingId && (
+              <p className="mb-3 text-xs font-medium text-primary">
+                Editing metric
+              </p>
+            )}
             <div className="grid gap-3 md:grid-cols-2">
               <div>
                 <label className="mb-1.5 block text-[11px] font-medium uppercase tracking-wider text-muted-foreground/60">
@@ -362,7 +400,7 @@ export function MetricsManager({ orgId, initialMetrics }: Props) {
                       </SelectTrigger>
                       <SelectContent>
                         {initialMetrics
-                          .filter((m) => m.kind !== "CALCULATED")
+                          .filter((m) => m.kind !== "CALCULATED" && m.id !== editingId)
                           .map((m) => (
                             <SelectItem key={m.id} value={m.id}>
                               {m.name}
@@ -384,7 +422,7 @@ export function MetricsManager({ orgId, initialMetrics }: Props) {
                       </SelectTrigger>
                       <SelectContent>
                         {initialMetrics
-                          .filter((m) => m.kind !== "CALCULATED")
+                          .filter((m) => m.kind !== "CALCULATED" && m.id !== editingId)
                           .map((m) => (
                             <SelectItem key={m.id} value={m.id}>
                               {m.name}
@@ -448,10 +486,14 @@ export function MetricsManager({ orgId, initialMetrics }: Props) {
               </Button>
               <Button
                 size="sm"
-                onClick={createMetric}
+                onClick={saveMetric}
                 disabled={!isFormValid() || saving}
               >
-                {saving ? "Saving..." : "Create Metric"}
+                {saving
+                  ? "Saving..."
+                  : editingId
+                    ? "Save Changes"
+                    : "Create Metric"}
               </Button>
             </div>
           </CardContent>
@@ -481,7 +523,10 @@ export function MetricsManager({ orgId, initialMetrics }: Props) {
             return (
               <Card
                 key={metric.id}
-                className="gap-0 border-border py-0 transition-all duration-200"
+                className={cn(
+                  "gap-0 border-border py-0 transition-all duration-200",
+                  editingId === metric.id && "border-primary/30"
+                )}
               >
                 <CardContent className="p-4">
                   <div className="flex items-start justify-between">
@@ -534,15 +579,26 @@ export function MetricsManager({ orgId, initialMetrics }: Props) {
                           )}
                       </div>
                     </div>
-                    <Button
-                      variant="ghost"
-                      size="icon-xs"
-                      onClick={() => deleteMetric(metric.id)}
-                      className="text-muted-foreground hover:text-red"
-                      title="Delete"
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </Button>
+                    <div className="flex items-center gap-1">
+                      <Button
+                        variant="ghost"
+                        size="icon-xs"
+                        onClick={() => startEdit(metric)}
+                        className="text-muted-foreground hover:text-foreground"
+                        title="Edit"
+                      >
+                        <Pencil className="h-3.5 w-3.5" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon-xs"
+                        onClick={() => deleteMetric(metric.id)}
+                        className="text-muted-foreground hover:text-red"
+                        title="Delete"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
                   </div>
                 </CardContent>
               </Card>

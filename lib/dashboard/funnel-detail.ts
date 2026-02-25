@@ -172,6 +172,135 @@ export async function getFunnelTimeSeries(
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Metric Time Series — daily values for a single metric
+// ─────────────────────────────────────────────────────────────────────────────
+
+export async function getMetricTimeSeries(
+  orgId: string,
+  metric: MetricWithRelations,
+  range: DateRange,
+  funnelId?: string
+): Promise<TimeSeriesPoint[]> {
+  // Generate all dates in range
+  const dates: string[] = [];
+  const current = new Date(range.from);
+  while (current <= range.to) {
+    dates.push(current.toISOString().slice(0, 10));
+    current.setDate(current.getDate() + 1);
+  }
+
+  const valueMap = await computeMetricByDay(orgId, metric, range, funnelId);
+
+  return dates.map((date) => ({
+    date,
+    value: valueMap.get(date) ?? 0,
+  }));
+}
+
+async function computeMetricByDay(
+  orgId: string,
+  metric: MetricWithRelations,
+  range: DateRange,
+  funnelId?: string,
+  depth = 0
+): Promise<Map<string, number>> {
+  if (depth > 3) return new Map();
+
+  switch (metric.kind) {
+    case "EVENT":
+      return computeEventMetricByDay(orgId, metric, range, funnelId);
+    case "REVENUE":
+      return computeRevenueMetricByDay(orgId, range, metric.productFilter, funnelId);
+    case "CALCULATED":
+      return computeCalculatedMetricByDay(orgId, metric, range, funnelId, depth);
+    default:
+      return new Map();
+  }
+}
+
+async function computeEventMetricByDay(
+  orgId: string,
+  metric: MetricWithRelations,
+  range: DateRange,
+  funnelId?: string
+): Promise<Map<string, number>> {
+  if (!metric.eventType) return new Map();
+
+  const where: Record<string, unknown> = {
+    organizationId: orgId,
+    type: metric.eventType,
+    timestamp: { gte: range.from, lte: range.to },
+  };
+  if (funnelId) where.funnelId = funnelId;
+
+  const grouped = await db.event.groupBy({
+    by: ["timestamp"],
+    where,
+    _count: true,
+  });
+
+  const dayMap = new Map<string, number>();
+  for (const row of grouped) {
+    const day = new Date(row.timestamp).toISOString().slice(0, 10);
+    dayMap.set(day, (dayMap.get(day) ?? 0) + row._count);
+  }
+  return dayMap;
+}
+
+async function computeRevenueMetricByDay(
+  orgId: string,
+  range: DateRange,
+  productFilter: string | null,
+  funnelId?: string
+): Promise<Map<string, number>> {
+  const where: Record<string, unknown> = {
+    organizationId: orgId,
+    status: "succeeded",
+    createdAt: { gte: range.from, lte: range.to },
+  };
+  if (productFilter) where.productName = productFilter;
+  if (funnelId) where.funnelId = funnelId;
+
+  const grouped = await db.payment.groupBy({
+    by: ["createdAt"],
+    where,
+    _sum: { amountCents: true },
+  });
+
+  const dayMap = new Map<string, number>();
+  for (const row of grouped) {
+    const day = new Date(row.createdAt).toISOString().slice(0, 10);
+    dayMap.set(day, (dayMap.get(day) ?? 0) + (row._sum.amountCents ?? 0) / 100);
+  }
+  return dayMap;
+}
+
+async function computeCalculatedMetricByDay(
+  orgId: string,
+  metric: MetricWithRelations,
+  range: DateRange,
+  funnelId: string | undefined,
+  depth: number
+): Promise<Map<string, number>> {
+  if (!metric.numeratorMetric || !metric.denominatorMetric) return new Map();
+
+  const [numMap, denMap] = await Promise.all([
+    computeMetricByDay(orgId, metric.numeratorMetric, range, funnelId, depth + 1),
+    computeMetricByDay(orgId, metric.denominatorMetric, range, funnelId, depth + 1),
+  ]);
+
+  // Merge all unique dates
+  const allDays = new Set([...numMap.keys(), ...denMap.keys()]);
+  const result = new Map<string, number>();
+  for (const day of allDays) {
+    const num = numMap.get(day) ?? 0;
+    const den = denMap.get(day) ?? 0;
+    result.set(day, den > 0 ? num / den : 0);
+  }
+  return result;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Source Breakdown
 // ─────────────────────────────────────────────────────────────────────────────
 

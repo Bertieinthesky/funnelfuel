@@ -20,28 +20,66 @@ import {
 } from "recharts";
 import { format, parseISO } from "date-fns";
 
+interface MetricOption {
+  id: string;
+  name: string;
+  kind: string;
+  format: string;
+}
+
 interface Props {
   orgId: string;
   funnelId: string;
   range?: string;
+  metrics?: MetricOption[];
 }
 
 interface DataPoint {
   date: string;
-  events: number;
-  revenue: number;
+  [key: string]: string | number;
 }
 
-export function FunnelChart({ orgId, funnelId, range }: Props) {
+const METRIC_COLORS: Record<string, string> = {
+  events: "#ff6600",
+  revenue: "#22c55e",
+  CURRENCY: "#22c55e",
+  PERCENTAGE: "#3b82f6",
+  NUMBER: "#ff6600",
+};
+
+export function FunnelChart({ orgId, funnelId, range, metrics = [] }: Props) {
   const [data, setData] = useState<DataPoint[]>([]);
   const [loading, setLoading] = useState(true);
-  const [metric, setMetric] = useState<"events" | "revenue">("events");
+  const [selected, setSelected] = useState("events");
+
+  // Find the selected metric object (if it's an org metric)
+  const selectedMetric = metrics.find((m) => m.id === selected);
+  const isBuiltin = selected === "events" || selected === "revenue";
+  const dataKey = isBuiltin ? selected : "value";
+
+  const chartColor = isBuiltin
+    ? METRIC_COLORS[selected]
+    : METRIC_COLORS[selectedMetric?.format ?? "NUMBER"];
+
+  const formatValue = useCallback(
+    (v: number) => {
+      if (selected === "revenue" || selectedMetric?.format === "CURRENCY") {
+        return `$${v.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
+      }
+      if (selectedMetric?.format === "PERCENTAGE") {
+        return `${(v * 100).toFixed(1)}%`;
+      }
+      return v.toLocaleString();
+    },
+    [selected, selectedMetric]
+  );
 
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
       const params = new URLSearchParams();
       if (range) params.set("range", range);
+      if (!isBuiltin) params.set("metricId", selected);
       const res = await fetch(
         `/api/dashboard/${orgId}/funnels/${funnelId}/chart?${params}`
       );
@@ -51,29 +89,40 @@ export function FunnelChart({ orgId, funnelId, range }: Props) {
     } finally {
       setLoading(false);
     }
-  }, [orgId, funnelId, range]);
+  }, [orgId, funnelId, range, selected, isBuiltin]);
 
   useEffect(() => {
     fetchData();
   }, [fetchData]);
 
-  const chartColor = metric === "revenue" ? "#22c55e" : "#ff6600";
+  const displayName = isBuiltin
+    ? selected === "revenue"
+      ? "Revenue"
+      : "Events"
+    : selectedMetric?.name ?? selected;
 
   return (
     <Card className="gap-0 border-border py-0">
       <CardContent className="p-4">
         <div className="mb-3 flex items-center justify-between">
           <h3 className="text-sm font-medium text-foreground">Trend</h3>
-          <Select
-            value={metric}
-            onValueChange={(v) => setMetric(v as "events" | "revenue")}
-          >
-            <SelectTrigger className="w-[130px] h-7 text-xs">
+          <Select value={selected} onValueChange={setSelected}>
+            <SelectTrigger className="w-[180px] h-7 text-xs">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="events">Events</SelectItem>
               <SelectItem value="revenue">Revenue</SelectItem>
+              {metrics.length > 0 && (
+                <>
+                  <div className="my-1 border-t border-border" />
+                  {metrics.map((m) => (
+                    <SelectItem key={m.id} value={m.id}>
+                      {m.name}
+                    </SelectItem>
+                  ))}
+                </>
+              )}
             </SelectContent>
           </Select>
         </div>
@@ -115,12 +164,8 @@ export function FunnelChart({ orgId, funnelId, range }: Props) {
                 tick={{ fill: "var(--muted-foreground)", fontSize: 11 }}
                 tickLine={false}
                 axisLine={false}
-                width={45}
-                tickFormatter={(v) =>
-                  metric === "revenue"
-                    ? `$${v.toLocaleString()}`
-                    : v.toLocaleString()
-                }
+                width={50}
+                tickFormatter={(v) => formatValue(v)}
               />
               <RechartsTooltip
                 contentStyle={{
@@ -132,16 +177,11 @@ export function FunnelChart({ orgId, funnelId, range }: Props) {
                 labelFormatter={(label) =>
                   format(parseISO(label as string), "MMM d, yyyy")
                 }
-                formatter={(value) => [
-                  metric === "revenue"
-                    ? `$${(value as number).toLocaleString()}`
-                    : (value as number).toLocaleString(),
-                  metric === "revenue" ? "Revenue" : "Events",
-                ]}
+                formatter={(value) => [formatValue(value as number), displayName]}
               />
               <Area
                 type="monotone"
-                dataKey={metric}
+                dataKey={dataKey}
                 stroke={chartColor}
                 strokeWidth={2}
                 fill="url(#funnelGrad)"

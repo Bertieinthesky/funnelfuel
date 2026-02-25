@@ -5,8 +5,11 @@ import { z } from "zod";
 
 const UpdateRuleSchema = z.object({
   name: z.string().min(1).optional(),
+  matchType: z.enum(["contains", "exact"]).optional(),
   pattern: z.string().min(1).optional(),
   excludePattern: z.string().nullable().optional(),
+  ignoreCase: z.boolean().optional(),
+  ignoreQuery: z.boolean().optional(),
   eventType: z.nativeEnum(EventType).optional(),
   tags: z.array(z.string()).optional(),
   funnelStepId: z.string().nullable().optional(),

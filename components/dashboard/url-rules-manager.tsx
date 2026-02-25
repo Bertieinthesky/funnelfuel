@@ -3,7 +3,7 @@
 import { cn } from "@/lib/cn";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Trash2, Power, Tag } from "lucide-react";
+import { Plus, Trash2, Power, Tag, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -54,44 +54,85 @@ interface Props {
   initialRules: UrlRule[];
 }
 
+interface FormState {
+  name: string;
+  matchType: string;
+  pattern: string;
+  excludePattern: string;
+  ignoreCase: boolean;
+  ignoreQuery: boolean;
+  eventType: string;
+  tags: string;
+}
+
+const EMPTY_FORM: FormState = {
+  name: "",
+  matchType: "contains",
+  pattern: "",
+  excludePattern: "",
+  ignoreCase: true,
+  ignoreQuery: true,
+  eventType: "URL_RULE_MATCH",
+  tags: "",
+};
+
 export function UrlRulesManager({ orgId, initialRules }: Props) {
   const router = useRouter();
-  const [rules, setRules] = useState(initialRules);
+  const [rules] = useState(initialRules);
   const [showForm, setShowForm] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
-  const [form, setForm] = useState({
-    name: "",
-    matchType: "contains" as string,
-    pattern: "",
-    excludePattern: "",
-    ignoreCase: true,
-    ignoreQuery: true,
-    eventType: "URL_RULE_MATCH" as string,
-    tags: "" as string,
-  });
+  const [form, setForm] = useState<FormState>({ ...EMPTY_FORM });
 
-  async function createRule() {
+  function resetForm() {
+    setForm({ ...EMPTY_FORM });
+    setEditingId(null);
+  }
+
+  function startEdit(rule: UrlRule) {
+    setForm({
+      name: rule.name,
+      matchType: rule.matchType,
+      pattern: rule.pattern,
+      excludePattern: rule.excludePattern ?? "",
+      ignoreCase: rule.ignoreCase,
+      ignoreQuery: rule.ignoreQuery,
+      eventType: rule.eventType,
+      tags: rule.tags.join(", "),
+    });
+    setEditingId(rule.id);
+    setShowForm(true);
+  }
+
+  async function saveRule() {
     setSaving(true);
     try {
-      const res = await fetch(`/api/dashboard/${orgId}/url-rules`, {
-        method: "POST",
+      const body: Record<string, unknown> = {
+        name: form.name,
+        matchType: form.matchType,
+        pattern: form.pattern,
+        excludePattern: form.matchType === "contains" ? (form.excludePattern || undefined) : undefined,
+        ignoreCase: form.ignoreCase,
+        ignoreQuery: form.ignoreQuery,
+        eventType: form.eventType,
+        tags: form.tags
+          .split(",")
+          .map((t) => t.trim())
+          .filter(Boolean),
+      };
+
+      const url = editingId
+        ? `/api/dashboard/${orgId}/url-rules/${editingId}`
+        : `/api/dashboard/${orgId}/url-rules`;
+
+      const res = await fetch(url, {
+        method: editingId ? "PATCH" : "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: form.name,
-          matchType: form.matchType,
-          pattern: form.pattern,
-          excludePattern: form.matchType === "contains" ? (form.excludePattern || undefined) : undefined,
-          ignoreCase: form.ignoreCase,
-          ignoreQuery: form.ignoreQuery,
-          eventType: form.eventType,
-          tags: form.tags
-            .split(",")
-            .map((t) => t.trim())
-            .filter(Boolean),
-        }),
+        body: JSON.stringify(body),
       });
+
       if (res.ok) {
-        setForm({ name: "", matchType: "contains", pattern: "", excludePattern: "", ignoreCase: true, ignoreQuery: true, eventType: "URL_RULE_MATCH", tags: "" });
+        resetForm();
         setShowForm(false);
         router.refresh();
       }
@@ -125,16 +166,27 @@ export function UrlRulesManager({ orgId, initialRules }: Props) {
             Fire events when visitors hit specific URL patterns
           </p>
         </div>
-        <Button size="sm" onClick={() => setShowForm(!showForm)}>
+        <Button
+          size="sm"
+          onClick={() => {
+            resetForm();
+            setShowForm(!showForm);
+          }}
+        >
           <Plus className="h-3.5 w-3.5" />
           Add Rule
         </Button>
       </div>
 
-      {/* Create form */}
+      {/* Create / Edit form */}
       {showForm && (
         <Card className="mb-4 gap-0 border-primary/30 py-0 animate-fade-in">
           <CardContent className="p-4">
+            {editingId && (
+              <p className="mb-3 text-xs font-medium text-primary">
+                Editing rule
+              </p>
+            )}
             <div className="grid gap-3 md:grid-cols-2">
               <div>
                 <label className="mb-1.5 block text-[11px] font-medium uppercase tracking-wider text-muted-foreground/60">
@@ -242,15 +294,26 @@ export function UrlRulesManager({ orgId, initialRules }: Props) {
               </div>
             </div>
             <div className="mt-3 flex justify-end gap-2">
-              <Button variant="ghost" size="sm" onClick={() => setShowForm(false)}>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setShowForm(false);
+                  resetForm();
+                }}
+              >
                 Cancel
               </Button>
               <Button
                 size="sm"
-                onClick={createRule}
+                onClick={saveRule}
                 disabled={!form.name || !form.pattern || saving}
               >
-                {saving ? "Saving..." : "Create Rule"}
+                {saving
+                  ? "Saving..."
+                  : editingId
+                    ? "Save Changes"
+                    : "Create Rule"}
               </Button>
             </div>
           </CardContent>
@@ -271,7 +334,8 @@ export function UrlRulesManager({ orgId, initialRules }: Props) {
               key={rule.id}
               className={cn(
                 "gap-0 py-0 transition-all duration-200",
-                rule.isActive ? "border-border" : "border-border opacity-50"
+                rule.isActive ? "border-border" : "border-border opacity-50",
+                editingId === rule.id && "border-primary/30 opacity-100"
               )}
             >
               <CardContent className="p-4">
@@ -337,6 +401,15 @@ export function UrlRulesManager({ orgId, initialRules }: Props) {
                     )}
                   </div>
                   <div className="flex items-center gap-1">
+                    <Button
+                      variant="ghost"
+                      size="icon-xs"
+                      onClick={() => startEdit(rule)}
+                      className="text-muted-foreground hover:text-foreground"
+                      title="Edit"
+                    >
+                      <Pencil className="h-3.5 w-3.5" />
+                    </Button>
                     <Button
                       variant="ghost"
                       size="icon-xs"
