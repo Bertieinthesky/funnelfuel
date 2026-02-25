@@ -62,7 +62,7 @@ const STATUS_CONFIG: Record<
 };
 
 export function FunnelHealthPanel({ overall, steps }: FunnelHealthPanelProps) {
-  const [expanded, setExpanded] = useState(overall !== "healthy");
+  const [expanded, setExpanded] = useState(false);
 
   const overallCfg = STATUS_CONFIG[overall];
   const OverallIcon = overallCfg.icon;
