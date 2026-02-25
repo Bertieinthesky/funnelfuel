@@ -185,7 +185,13 @@ export async function getFunnelOverview(orgId: string, range: DateRange) {
   const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
 
-  const [stepCounts, todayEvents, todayRevenue] = await Promise.all([
+  // Health: last 7 days vs prior 7 days boundaries
+  const sevenDaysAgo = new Date(now);
+  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+  const fourteenDaysAgo = new Date(now);
+  fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 14);
+
+  const [stepCounts, todayEvents, todayRevenue, healthCurrent, healthPrevious] = await Promise.all([
     allStepIds.length > 0
       ? db.event.groupBy({
           by: ["funnelStepId"],
@@ -219,6 +225,28 @@ export async function getFunnelOverview(orgId: string, range: DateRange) {
           _sum: { amountCents: true },
         })
       : Promise.resolve([]),
+    // Health: current week step counts
+    allStepIds.length > 0
+      ? db.event.groupBy({
+          by: ["funnelStepId"],
+          where: {
+            funnelStepId: { in: allStepIds },
+            timestamp: { gte: sevenDaysAgo, lte: now },
+          },
+          _count: true,
+        })
+      : Promise.resolve([]),
+    // Health: previous week step counts
+    allStepIds.length > 0
+      ? db.event.groupBy({
+          by: ["funnelStepId"],
+          where: {
+            funnelStepId: { in: allStepIds },
+            timestamp: { gte: fourteenDaysAgo, lt: sevenDaysAgo },
+          },
+          _count: true,
+        })
+      : Promise.resolve([]),
   ]);
 
   const countMap = new Map(
@@ -230,23 +258,61 @@ export async function getFunnelOverview(orgId: string, range: DateRange) {
   const todayRevenueMap = new Map(
     todayRevenue.map((tr) => [tr.funnelId, (tr._sum.amountCents ?? 0) / 100])
   );
+  const healthCurrentMap = new Map(
+    healthCurrent.map((hc) => [hc.funnelStepId, hc._count])
+  );
+  const healthPreviousMap = new Map(
+    healthPrevious.map((hp) => [hp.funnelStepId, hp._count])
+  );
 
-  return funnels.map((funnel) => ({
-    id: funnel.id,
-    name: funnel.name,
-    type: funnel.type,
-    status: funnel.status,
-    activeTests: funnel.experiments.length,
-    todayEvents: todayEventsMap.get(funnel.id) ?? 0,
-    todayRevenue: todayRevenueMap.get(funnel.id) ?? 0,
-    steps: funnel.steps.map((step) => ({
-      id: step.id,
-      name: step.name,
-      type: step.type,
-      order: step.order,
-      count: countMap.get(step.id) ?? 0,
-    })),
-  }));
+  type HealthLevel = "healthy" | "warning" | "critical" | "inactive";
+
+  return funnels.map((funnel) => {
+    // Compute per-step health for this funnel
+    let overallHealth: HealthLevel = "healthy";
+
+    for (const step of funnel.steps) {
+      const cur = healthCurrentMap.get(step.id) ?? 0;
+      const prev = healthPreviousMap.get(step.id) ?? 0;
+      let stepHealth: HealthLevel;
+
+      if (cur === 0 && prev === 0) {
+        stepHealth = "inactive";
+      } else if (cur === 0 && prev > 0) {
+        stepHealth = "critical";
+      } else if (prev > 0 && ((cur - prev) / prev) * 100 < -30) {
+        stepHealth = "critical";
+      } else if (prev > 0 && ((cur - prev) / prev) * 100 < -10) {
+        stepHealth = "warning";
+      } else {
+        stepHealth = "healthy";
+      }
+
+      if (stepHealth === "critical") overallHealth = "critical";
+      else if (stepHealth === "warning" && overallHealth !== "critical")
+        overallHealth = "warning";
+      else if (stepHealth === "inactive" && overallHealth === "healthy")
+        overallHealth = "inactive";
+    }
+
+    return {
+      id: funnel.id,
+      name: funnel.name,
+      type: funnel.type,
+      status: funnel.status,
+      activeTests: funnel.experiments.length,
+      todayEvents: todayEventsMap.get(funnel.id) ?? 0,
+      todayRevenue: todayRevenueMap.get(funnel.id) ?? 0,
+      health: funnel.steps.length > 0 ? overallHealth : ("inactive" as HealthLevel),
+      steps: funnel.steps.map((step) => ({
+        id: step.id,
+        name: step.name,
+        type: step.type,
+        order: step.order,
+        count: countMap.get(step.id) ?? 0,
+      })),
+    };
+  });
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

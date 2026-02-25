@@ -301,6 +301,117 @@ async function computeCalculatedMetricByDay(
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Health Status
+// ─────────────────────────────────────────────────────────────────────────────
+
+export type HealthLevel = "healthy" | "warning" | "critical" | "inactive";
+
+export interface StepHealth {
+  stepId: string;
+  stepName: string;
+  status: HealthLevel;
+  currentCount: number;
+  previousCount: number;
+  changePct: number; // negative = decline
+}
+
+export interface FunnelHealth {
+  overall: HealthLevel;
+  steps: StepHealth[];
+}
+
+export async function getFunnelHealth(
+  funnelId: string,
+  steps: FunnelStep[]
+): Promise<FunnelHealth> {
+  if (steps.length === 0)
+    return { overall: "inactive", steps: [] };
+
+  const now = new Date();
+  const sevenDaysAgo = new Date(now);
+  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+  const fourteenDaysAgo = new Date(now);
+  fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 14);
+
+  const stepIds = steps.map((s) => s.id);
+
+  // Batch query: counts for current week and previous week
+  const [currentCounts, previousCounts] = await Promise.all([
+    db.event.groupBy({
+      by: ["funnelStepId"],
+      where: {
+        funnelStepId: { in: stepIds },
+        timestamp: { gte: sevenDaysAgo, lte: now },
+      },
+      _count: true,
+    }),
+    db.event.groupBy({
+      by: ["funnelStepId"],
+      where: {
+        funnelStepId: { in: stepIds },
+        timestamp: { gte: fourteenDaysAgo, lt: sevenDaysAgo },
+      },
+      _count: true,
+    }),
+  ]);
+
+  const currentMap = new Map(
+    currentCounts.map((c) => [c.funnelStepId, c._count])
+  );
+  const previousMap = new Map(
+    previousCounts.map((c) => [c.funnelStepId, c._count])
+  );
+
+  const stepHealths: StepHealth[] = steps.map((step) => {
+    const current = currentMap.get(step.id) ?? 0;
+    const previous = previousMap.get(step.id) ?? 0;
+
+    let changePct = 0;
+    if (previous > 0) {
+      changePct = ((current - previous) / previous) * 100;
+    } else if (current > 0) {
+      changePct = 100; // new activity
+    }
+
+    let status: HealthLevel;
+    if (current === 0 && previous === 0) {
+      status = "inactive";
+    } else if (current === 0 && previous > 0) {
+      status = "critical";
+    } else if (changePct < -30) {
+      status = "critical";
+    } else if (changePct < -10) {
+      status = "warning";
+    } else {
+      status = "healthy";
+    }
+
+    return {
+      stepId: step.id,
+      stepName: step.name,
+      status,
+      currentCount: current,
+      previousCount: previous,
+      changePct,
+    };
+  });
+
+  // Overall: worst step status
+  let overall: HealthLevel = "healthy";
+  for (const sh of stepHealths) {
+    if (sh.status === "critical") {
+      overall = "critical";
+      break;
+    }
+    if (sh.status === "warning") overall = "warning";
+    if (sh.status === "inactive" && overall === "healthy")
+      overall = "inactive";
+  }
+
+  return { overall, steps: stepHealths };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Source Breakdown
 // ─────────────────────────────────────────────────────────────────────────────
 

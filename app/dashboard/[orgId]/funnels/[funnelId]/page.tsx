@@ -5,6 +5,7 @@ import { parseDateRange } from "@/lib/dashboard/date-range";
 import {
   getFunnelStepCounts,
   getFunnelKpiValues,
+  getFunnelHealth,
 } from "@/lib/dashboard/funnel-detail";
 import { KpiCard } from "@/components/dashboard/kpi-card";
 import { FunnelChart } from "@/components/dashboard/funnel-chart";
@@ -12,6 +13,7 @@ import { FunnelDetailTable } from "@/components/dashboard/funnel-detail-table";
 import { FunnelKpiConfig } from "@/components/dashboard/funnel-kpi-config";
 import { FunnelStatusSelect } from "@/components/dashboard/funnel-status-select";
 import { EditFunnelDialog } from "@/components/dashboard/edit-funnel-dialog";
+import { FunnelHealthPanel } from "@/components/dashboard/funnel-health-panel";
 import { cn } from "@/lib/cn";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -95,12 +97,11 @@ export default async function FunnelDetailPage({
 
   if (!funnel) notFound();
 
-  // Get step counts
-  const stepCounts = await getFunnelStepCounts(
-    funnelId,
-    funnel.steps,
-    dateRange
-  );
+  // Get step counts and health in parallel
+  const [stepCounts, health] = await Promise.all([
+    getFunnelStepCounts(funnelId, funnel.steps, dateRange),
+    getFunnelHealth(funnelId, funnel.steps),
+  ]);
 
   // Determine which metrics to show as KPIs
   let kpiMetrics = funnel.kpis.map((k) => k.metric);
@@ -276,6 +277,11 @@ export default async function FunnelDetailPage({
             );
           })}
         </div>
+      )}
+
+      {/* Health Status */}
+      {health.steps.length > 0 && (
+        <FunnelHealthPanel overall={health.overall} steps={health.steps} />
       )}
 
       {/* Chart */}

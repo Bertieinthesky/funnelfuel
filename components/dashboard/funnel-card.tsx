@@ -2,6 +2,7 @@ import { cn } from "@/lib/cn";
 import { GitBranch, ChevronRight, ArrowRight, Activity, DollarSign } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { FunnelHealthBadge } from "@/components/dashboard/funnel-health-badge";
 import Link from "next/link";
 
 interface FunnelStep {
@@ -21,6 +22,7 @@ interface FunnelCardProps {
   activeTests: number;
   todayEvents?: number;
   todayRevenue?: number;
+  health?: "healthy" | "warning" | "critical" | "inactive";
   steps: FunnelStep[];
 }
 
@@ -39,6 +41,7 @@ export function FunnelCard({
   activeTests,
   todayEvents = 0,
   todayRevenue = 0,
+  health,
   steps,
 }: FunnelCardProps) {
   const firstStep = steps[0];
@@ -72,6 +75,7 @@ export function FunnelCard({
                   {activeTests} test{activeTests !== 1 ? "s" : ""}
                 </Badge>
               )}
+              {health && <FunnelHealthBadge health={health} />}
               <div className="flex items-center gap-1.5">
                 <span
                   className={cn(

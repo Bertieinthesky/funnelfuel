@@ -69,6 +69,7 @@ export default async function FunnelsPage({
                     activeTests={funnel.activeTests}
                     todayEvents={funnel.todayEvents}
                     todayRevenue={funnel.todayRevenue}
+                    health={funnel.health}
                     steps={funnel.steps}
                   />
                 ))}
@@ -93,6 +94,7 @@ export default async function FunnelsPage({
                     activeTests={funnel.activeTests}
                     todayEvents={funnel.todayEvents}
                     todayRevenue={funnel.todayRevenue}
+                    health={funnel.health}
                     steps={funnel.steps}
                   />
                 ))}
@@ -117,6 +119,7 @@ export default async function FunnelsPage({
                     activeTests={funnel.activeTests}
                     todayEvents={funnel.todayEvents}
                     todayRevenue={funnel.todayRevenue}
+                    health={funnel.health}
                     steps={funnel.steps}
                   />
                 ))}
