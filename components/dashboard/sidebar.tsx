@@ -18,17 +18,47 @@ import {
   Bell,
 } from "lucide-react";
 
-const navItems = [
-  { label: "Overview", icon: LayoutDashboard, path: "" },
-  { label: "Live Feed", icon: Activity, path: "/feed" },
-  { label: "Sources", icon: Radio, path: "/sources" },
-  { label: "Funnels", icon: Globe, path: "/funnels" },
-  { label: "Split Tests", icon: GitBranch, path: "/split-tests" },
-  { label: "Contacts", icon: Users, path: "/contacts" },
-  { label: "Segments", icon: Layers, path: "/segments" },
-  { label: "Report", icon: FileBarChart, path: "/reports" },
-  { label: "Alerts", icon: Bell, path: "/alerts" },
-  { label: "Metrics", icon: BarChart3, path: "/metrics" },
+interface NavItem {
+  label: string;
+  icon: typeof LayoutDashboard;
+  path: string;
+}
+
+interface NavSection {
+  heading?: string;
+  items: NavItem[];
+}
+
+const navSections: NavSection[] = [
+  {
+    items: [
+      { label: "Overview", icon: LayoutDashboard, path: "" },
+      { label: "Live Feed", icon: Activity, path: "/feed" },
+    ],
+  },
+  {
+    heading: "Acquisition",
+    items: [
+      { label: "Sources", icon: Radio, path: "/sources" },
+      { label: "Funnels", icon: Globe, path: "/funnels" },
+      { label: "Split Tests", icon: GitBranch, path: "/split-tests" },
+    ],
+  },
+  {
+    heading: "People",
+    items: [
+      { label: "Contacts", icon: Users, path: "/contacts" },
+      { label: "Segments", icon: Layers, path: "/segments" },
+    ],
+  },
+  {
+    heading: "Insights",
+    items: [
+      { label: "Report", icon: FileBarChart, path: "/reports" },
+      { label: "Metrics", icon: BarChart3, path: "/metrics" },
+      { label: "Alerts", icon: Bell, path: "/alerts" },
+    ],
+  },
 ];
 
 export function Sidebar({ orgId, orgName }: { orgId: string; orgName: string }) {
@@ -53,38 +83,51 @@ export function Sidebar({ orgId, orgName }: { orgId: string; orgName: string }) 
 
       <Separator />
 
-      {/* Nav links */}
-      <nav className="flex-1 space-y-1 px-2 py-3">
-        {navItems.map((item) => {
-          const href = `${base}${item.path}`;
-          const isActive =
-            item.path === ""
-              ? pathname === base || pathname === `${base}/`
-              : pathname.startsWith(href);
+      {/* Nav sections */}
+      <nav className="flex-1 overflow-y-auto px-2 py-2">
+        {navSections.map((section, si) => (
+          <div key={si} className={cn(si > 0 && "mt-4")}>
+            {section.heading && (
+              <p className="mb-1 px-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/40">
+                {section.heading}
+              </p>
+            )}
+            <div className="space-y-0.5">
+              {section.items.map((item) => {
+                const href = `${base}${item.path}`;
+                const isActive =
+                  item.path === ""
+                    ? pathname === base || pathname === `${base}/`
+                    : pathname.startsWith(href);
 
-          return (
-            <Button
-              key={item.path}
-              variant="ghost"
-              size="sm"
-              asChild
-              className={cn(
-                "w-full justify-start gap-2.5 font-normal",
-                isActive
-                  ? "bg-primary/10 text-foreground hover:bg-primary/15"
-                  : "text-muted-foreground hover:bg-secondary hover:text-foreground"
-              )}
-            >
-              <Link href={href}>
-                <item.icon className={cn(
-                  "h-4 w-4 shrink-0",
-                  isActive ? "text-primary" : "text-primary/60"
-                )} />
-                {item.label}
-              </Link>
-            </Button>
-          );
-        })}
+                return (
+                  <Button
+                    key={item.path}
+                    variant="ghost"
+                    size="sm"
+                    asChild
+                    className={cn(
+                      "w-full justify-start gap-2.5 font-normal",
+                      isActive
+                        ? "bg-primary/10 text-foreground hover:bg-primary/15"
+                        : "text-muted-foreground hover:bg-secondary hover:text-foreground"
+                    )}
+                  >
+                    <Link href={href}>
+                      <item.icon
+                        className={cn(
+                          "h-4 w-4 shrink-0",
+                          isActive ? "text-primary" : "text-primary/60"
+                        )}
+                      />
+                      {item.label}
+                    </Link>
+                  </Button>
+                );
+              })}
+            </div>
+          </div>
+        ))}
       </nav>
 
       {/* Footer */}
