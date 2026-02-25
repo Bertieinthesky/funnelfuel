@@ -2,7 +2,7 @@
 
 import { cn } from "@/lib/cn";
 import { useState } from "react";
-import { ArrowUpDown } from "lucide-react";
+import { ArrowUpDown, ChevronRight } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import {
   Table,
@@ -14,8 +14,8 @@ import {
 } from "@/components/ui/table";
 import Link from "next/link";
 
-interface SourceRow {
-  source: string;
+interface TitleRow {
+  title: string;
   visitors: number;
   leads: number;
   purchases: number;
@@ -24,7 +24,18 @@ interface SourceRow {
   rpv: number;
 }
 
-type SortKey = keyof Omit<SourceRow, "source">;
+interface SourceRow {
+  source: string;
+  visitors: number;
+  leads: number;
+  purchases: number;
+  revenue: number;
+  rpl: number;
+  rpv: number;
+  titles?: TitleRow[];
+}
+
+type SortKey = "visitors" | "leads" | "purchases" | "revenue" | "rpl" | "rpv";
 
 const columns: { key: SortKey; label: string; format: (v: number) => string }[] = [
   { key: "visitors", label: "Visitors", format: (v) => v.toLocaleString() },
@@ -43,6 +54,7 @@ interface Props {
 export function SourceTable({ data, orgId }: Props) {
   const [sortKey, setSortKey] = useState<SortKey>("revenue");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
 
   const sorted = [...data].sort((a, b) =>
     sortDir === "desc" ? b[sortKey] - a[sortKey] : a[sortKey] - b[sortKey]
@@ -55,6 +67,15 @@ export function SourceTable({ data, orgId }: Props) {
       setSortKey(key);
       setSortDir("desc");
     }
+  }
+
+  function toggleExpand(source: string) {
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      if (next.has(source)) next.delete(source);
+      else next.add(source);
+      return next;
+    });
   }
 
   if (data.length === 0) {
@@ -72,6 +93,7 @@ export function SourceTable({ data, orgId }: Props) {
       <Table>
         <TableHeader>
           <TableRow className="border-border hover:bg-transparent">
+            <TableHead className="w-8 px-2" />
             <TableHead className="px-4 text-xs text-muted-foreground">
               Source
             </TableHead>
@@ -99,65 +121,120 @@ export function SourceTable({ data, orgId }: Props) {
             const sourceHref = orgId
               ? `/dashboard/${orgId}/sources/${encodeURIComponent(row.source)}`
               : undefined;
+            const hasTitles = row.titles && row.titles.length > 0;
+            const isExpanded = expanded.has(row.source);
 
             return (
-              <TableRow
-                key={row.source}
-                className={cn(
-                  "border-border transition-colors",
-                  i === 0 && "bg-primary/5",
-                  sourceHref && "cursor-pointer hover:bg-secondary/50"
-                )}
-              >
-                <TableCell className="px-4 font-medium">
-                  {sourceHref ? (
-                    <Link href={sourceHref} className="flex items-center gap-2 hover:text-primary transition-colors">
-                      <span
-                        className={cn(
-                          "inline-block h-2 w-2 rounded-full",
-                          row.source === "direct"
-                            ? "bg-muted-foreground/40"
-                            : i === 0
-                              ? "bg-primary"
-                              : "bg-muted-foreground"
-                        )}
-                      />
-                      {row.source}
-                    </Link>
-                  ) : (
-                    <div className="flex items-center gap-2">
-                      <span
-                        className={cn(
-                          "inline-block h-2 w-2 rounded-full",
-                          row.source === "direct"
-                            ? "bg-muted-foreground/40"
-                            : i === 0
-                              ? "bg-primary"
-                              : "bg-muted-foreground"
-                        )}
-                      />
-                      {row.source}
-                    </div>
+              <>
+                <TableRow
+                  key={row.source}
+                  className={cn(
+                    "border-border transition-colors",
+                    i === 0 && "bg-primary/5",
+                    sourceHref && "cursor-pointer hover:bg-secondary/50"
                   )}
-                </TableCell>
-                {columns.map((col) => (
-                  <TableCell
-                    key={col.key}
-                    className={cn(
-                      "px-4 text-right tabular-nums",
-                      col.key === "revenue" ? "font-medium text-foreground" : "text-muted-foreground"
-                    )}
-                  >
-                    {sourceHref ? (
-                      <Link href={sourceHref} className="block">
-                        {col.format(row[col.key])}
-                      </Link>
-                    ) : (
-                      col.format(row[col.key])
+                >
+                  {/* Expand toggle */}
+                  <TableCell className="w-8 px-2">
+                    {hasTitles && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          toggleExpand(row.source);
+                        }}
+                        className="flex h-5 w-5 items-center justify-center rounded transition-colors hover:bg-secondary"
+                      >
+                        <ChevronRight
+                          className={cn(
+                            "h-3.5 w-3.5 text-muted-foreground/60 transition-transform",
+                            isExpanded && "rotate-90"
+                          )}
+                        />
+                      </button>
                     )}
                   </TableCell>
+
+                  <TableCell className="px-4 font-medium">
+                    {sourceHref ? (
+                      <Link href={sourceHref} className="flex items-center gap-2 hover:text-primary transition-colors">
+                        <span
+                          className={cn(
+                            "inline-block h-2 w-2 rounded-full",
+                            row.source === "direct"
+                              ? "bg-muted-foreground/40"
+                              : i === 0
+                                ? "bg-primary"
+                                : "bg-muted-foreground"
+                          )}
+                        />
+                        {row.source}
+                        {hasTitles && (
+                          <span className="text-[10px] text-muted-foreground/50">
+                            {row.titles!.length} title{row.titles!.length !== 1 ? "s" : ""}
+                          </span>
+                        )}
+                      </Link>
+                    ) : (
+                      <div className="flex items-center gap-2">
+                        <span
+                          className={cn(
+                            "inline-block h-2 w-2 rounded-full",
+                            row.source === "direct"
+                              ? "bg-muted-foreground/40"
+                              : i === 0
+                                ? "bg-primary"
+                                : "bg-muted-foreground"
+                          )}
+                        />
+                        {row.source}
+                      </div>
+                    )}
+                  </TableCell>
+                  {columns.map((col) => (
+                    <TableCell
+                      key={col.key}
+                      className={cn(
+                        "px-4 text-right tabular-nums",
+                        col.key === "revenue" ? "font-medium text-foreground" : "text-muted-foreground"
+                      )}
+                    >
+                      {sourceHref ? (
+                        <Link href={sourceHref} className="block">
+                          {col.format(row[col.key])}
+                        </Link>
+                      ) : (
+                        col.format(row[col.key])
+                      )}
+                    </TableCell>
+                  ))}
+                </TableRow>
+
+                {/* Title sub-rows */}
+                {isExpanded && hasTitles && row.titles!.map((title) => (
+                  <TableRow
+                    key={`${row.source}-${title.title}`}
+                    className="border-border bg-secondary/30"
+                  >
+                    <TableCell className="w-8 px-2" />
+                    <TableCell className="px-4 pl-10">
+                      <span className="text-xs text-muted-foreground">
+                        {title.title}
+                      </span>
+                    </TableCell>
+                    {columns.map((col) => (
+                      <TableCell
+                        key={col.key}
+                        className={cn(
+                          "px-4 text-right tabular-nums text-xs",
+                          col.key === "revenue" ? "text-foreground" : "text-muted-foreground/80"
+                        )}
+                      >
+                        {col.format(title[col.key])}
+                      </TableCell>
+                    ))}
+                  </TableRow>
                 ))}
-              </TableRow>
+              </>
             );
           })}
         </TableBody>

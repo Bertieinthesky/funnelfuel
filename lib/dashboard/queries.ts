@@ -62,7 +62,7 @@ export async function getKpiMetrics(orgId: string, range: DateRange) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 export async function getSourceBreakdown(orgId: string, range: DateRange) {
-  // Get sessions grouped by source (ffSource or utmSource)
+  // Get sessions grouped by source (ffSource or utmSource) + title
   const sessions = await db.session.findMany({
     where: {
       organizationId: orgId,
@@ -71,6 +71,7 @@ export async function getSourceBreakdown(orgId: string, range: DateRange) {
     select: {
       id: true,
       ffSource: true,
+      ffTitle: true,
       utmSource: true,
       contactId: true,
     },
@@ -101,60 +102,93 @@ export async function getSourceBreakdown(orgId: string, range: DateRange) {
     }),
   ]);
 
-  // Build lookup maps
+  // Build lookup maps: session → source, session → title
   const sessionToSource = new Map<string, string>();
+  const sessionToTitle = new Map<string, string>();
   const contactToSource = new Map<string, string>();
+  const contactToTitle = new Map<string, string>();
   for (const s of sessions) {
     const source = s.ffSource || s.utmSource || "direct";
+    const title = s.ffTitle || "";
     sessionToSource.set(s.id, source);
-    if (s.contactId) contactToSource.set(s.contactId, source);
+    sessionToTitle.set(s.id, title);
+    if (s.contactId) {
+      contactToSource.set(s.contactId, source);
+      contactToTitle.set(s.contactId, title);
+    }
   }
 
-  // Aggregate per source
-  const sourceMap = new Map<
-    string,
-    { visitors: number; leads: number; purchases: number; revenue: number }
-  >();
+  // Aggregate per source AND per source+title
+  type Bucket = { visitors: number; leads: number; purchases: number; revenue: number };
+  const sourceMap = new Map<string, Bucket>();
+  const titleMap = new Map<string, Map<string, Bucket>>();
 
-  const getSource = (name: string) => {
-    if (!sourceMap.has(name))
-      sourceMap.set(name, { visitors: 0, leads: 0, purchases: 0, revenue: 0 });
-    return sourceMap.get(name)!;
+  const getBucket = (map: Map<string, Bucket>, key: string) => {
+    if (!map.has(key))
+      map.set(key, { visitors: 0, leads: 0, purchases: 0, revenue: 0 });
+    return map.get(key)!;
   };
 
-  // Count visitors per source
+  const getTitleBucket = (source: string, title: string) => {
+    if (!titleMap.has(source)) titleMap.set(source, new Map());
+    return getBucket(titleMap.get(source)!, title);
+  };
+
+  // Count visitors per source + title
   for (const s of sessions) {
     const source = sessionToSource.get(s.id) ?? "direct";
-    getSource(source).visitors++;
+    const title = sessionToTitle.get(s.id) ?? "";
+    getBucket(sourceMap, source).visitors++;
+    if (title) getTitleBucket(source, title).visitors++;
   }
 
-  // Count leads and purchases per source
+  // Count leads and purchases per source + title
   for (const e of events) {
     const source = sessionToSource.get(e.sessionId ?? "") ?? "direct";
+    const title = sessionToTitle.get(e.sessionId ?? "") ?? "";
     if (
       e.type === EventType.FORM_SUBMIT ||
       e.type === EventType.OPT_IN
     ) {
-      getSource(source).leads++;
+      getBucket(sourceMap, source).leads++;
+      if (title) getTitleBucket(source, title).leads++;
     }
     if (e.type === EventType.PURCHASE) {
-      getSource(source).purchases++;
+      getBucket(sourceMap, source).purchases++;
+      if (title) getTitleBucket(source, title).purchases++;
     }
   }
 
-  // Attribute revenue
+  // Attribute revenue per source + title
   for (const p of payments) {
     const source = contactToSource.get(p.contactId ?? "") ?? "direct";
-    getSource(source).revenue += p.amountCents / 100;
+    const title = contactToTitle.get(p.contactId ?? "") ?? "";
+    getBucket(sourceMap, source).revenue += p.amountCents / 100;
+    if (title) getTitleBucket(source, title).revenue += p.amountCents / 100;
   }
 
   return Array.from(sourceMap.entries())
-    .map(([source, data]) => ({
-      source,
-      ...data,
-      rpl: data.leads > 0 ? data.revenue / data.leads : 0,
-      rpv: data.visitors > 0 ? data.revenue / data.visitors : 0,
-    }))
+    .map(([source, data]) => {
+      const titlesInner = titleMap.get(source);
+      const titles = titlesInner
+        ? Array.from(titlesInner.entries())
+            .map(([title, td]) => ({
+              title,
+              ...td,
+              rpl: td.leads > 0 ? td.revenue / td.leads : 0,
+              rpv: td.visitors > 0 ? td.revenue / td.visitors : 0,
+            }))
+            .sort((a, b) => b.revenue - a.revenue)
+        : [];
+
+      return {
+        source,
+        ...data,
+        rpl: data.leads > 0 ? data.revenue / data.leads : 0,
+        rpv: data.visitors > 0 ? data.revenue / data.visitors : 0,
+        titles,
+      };
+    })
     .sort((a, b) => b.revenue - a.revenue);
 }
 
