@@ -5,6 +5,9 @@ import { useState, useRef, useEffect } from "react";
 import { CalendarDays } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
+import { Calendar } from "@/components/ui/calendar";
+import { format } from "date-fns";
+import type { DateRange } from "react-day-picker";
 
 const presets = [
   { label: "Today", value: "today" },
@@ -14,7 +17,7 @@ const presets = [
   { label: "All", value: "all" },
 ];
 
-function formatForInput(date: Date): string {
+function formatForParam(date: Date): string {
   const y = date.getFullYear();
   const m = String(date.getMonth() + 1).padStart(2, "0");
   const d = String(date.getDate()).padStart(2, "0");
@@ -42,8 +45,10 @@ export function DateRangePicker() {
     defaultTo = new Date(toStr);
   }
 
-  const [fromDate, setFromDate] = useState(formatForInput(defaultFrom));
-  const [toDate, setToDate] = useState(formatForInput(defaultTo));
+  const [dateRange, setDateRange] = useState<DateRange | undefined>({
+    from: defaultFrom,
+    to: defaultTo,
+  });
 
   function setRange(value: string) {
     const params = new URLSearchParams(searchParams.toString());
@@ -53,8 +58,8 @@ export function DateRangePicker() {
   }
 
   function applyCustomRange() {
-    if (!fromDate || !toDate) return;
-    setRange(`${fromDate}_${toDate}`);
+    if (!dateRange?.from || !dateRange?.to) return;
+    setRange(`${formatForParam(dateRange.from)}_${formatForParam(dateRange.to)}`);
   }
 
   // Close popover on outside click
@@ -71,7 +76,7 @@ export function DateRangePicker() {
 
   // Custom range display label
   const customLabel = isCustom
-    ? `${current.split("_")[0]} — ${current.split("_")[1]}`
+    ? `${format(defaultFrom, "MMM d")} — ${format(defaultTo, "MMM d")}`
     : null;
 
   return (
@@ -93,7 +98,7 @@ export function DateRangePicker() {
         </TabsList>
       </Tabs>
 
-      {/* Custom range button + popover */}
+      {/* Custom range button + calendar popover */}
       <div className="relative">
         <Button
           variant={isCustom ? "default" : "ghost"}
@@ -108,36 +113,31 @@ export function DateRangePicker() {
         {showCustom && (
           <div
             ref={popoverRef}
-            className="absolute right-0 top-full z-50 mt-1.5 rounded-lg border border-border bg-card p-3 shadow-lg animate-fade-in"
+            className="absolute right-0 top-full z-50 mt-1.5 rounded-lg border border-border bg-card shadow-lg animate-fade-in"
           >
-            <div className="flex items-end gap-2">
-              <div>
-                <label className="mb-1 block text-[10px] font-medium uppercase tracking-wider text-muted-foreground/60">
-                  From
-                </label>
-                <input
-                  type="date"
-                  value={fromDate}
-                  onChange={(e) => setFromDate(e.target.value)}
-                  className="h-8 rounded-md border border-border bg-background px-2 text-xs text-foreground outline-none focus:border-primary"
-                />
-              </div>
-              <div>
-                <label className="mb-1 block text-[10px] font-medium uppercase tracking-wider text-muted-foreground/60">
-                  To
-                </label>
-                <input
-                  type="date"
-                  value={toDate}
-                  onChange={(e) => setToDate(e.target.value)}
-                  className="h-8 rounded-md border border-border bg-background px-2 text-xs text-foreground outline-none focus:border-primary"
-                />
-              </div>
+            <Calendar
+              mode="range"
+              selected={dateRange}
+              onSelect={setDateRange}
+              numberOfMonths={2}
+              defaultMonth={
+                dateRange?.from
+                  ? new Date(dateRange.from.getFullYear(), dateRange.from.getMonth() - 1)
+                  : undefined
+              }
+              disabled={{ after: today }}
+            />
+            <div className="flex items-center justify-between border-t border-border px-3 py-2">
+              <p className="text-xs text-muted-foreground">
+                {dateRange?.from && dateRange?.to
+                  ? `${format(dateRange.from, "MMM d, yyyy")} — ${format(dateRange.to, "MMM d, yyyy")}`
+                  : "Select a date range"}
+              </p>
               <Button
                 size="sm"
-                className="h-8 text-xs"
+                className="h-7 text-xs"
                 onClick={applyCustomRange}
-                disabled={!fromDate || !toDate}
+                disabled={!dateRange?.from || !dateRange?.to}
               >
                 Apply
               </Button>

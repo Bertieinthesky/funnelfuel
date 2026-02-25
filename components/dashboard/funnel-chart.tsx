@@ -158,6 +158,7 @@ export function FunnelChart({ orgId, funnelId, range, metrics = [] }: Props) {
                 tick={{ fill: "var(--muted-foreground)", fontSize: 11 }}
                 tickLine={false}
                 axisLine={false}
+                minTickGap={40}
                 tickFormatter={(d) => format(parseISO(d), "MMM d")}
               />
               <YAxis
