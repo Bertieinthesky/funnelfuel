@@ -8,6 +8,8 @@ const CreateRuleSchema = z.object({
   matchType: z.enum(["contains", "exact"]).default("contains"),
   pattern: z.string().min(1),
   excludePattern: z.string().optional(),
+  ignoreCase: z.boolean().default(true),
+  ignoreQuery: z.boolean().default(true),
   eventType: z.nativeEnum(EventType),
   tags: z.array(z.string()).default([]),
   funnelStepId: z.string().optional(),

@@ -361,6 +361,10 @@ model UrlRule {
   pattern        String
   // Optional: if the URL also matches this pattern, skip the rule entirely (contains mode only)
   excludePattern String?
+  // Case-insensitive matching (default true)
+  ignoreCase     Boolean      @default(true)
+  // Strip query string (?utm_source=...) before matching (default true)
+  ignoreQuery    Boolean      @default(true)
   eventType      EventType
   tags           String[]
   funnelStepId   String?

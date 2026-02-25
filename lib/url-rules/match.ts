@@ -3,10 +3,9 @@
 // Checks each page_view against org URL rules. Fires an event when a rule
 // matches AND the URL does not match the optional excludePattern.
 //
-// excludePattern solves the /thank-you vs /thank-you-variant problem:
-//   pattern:        "thank-you*"
-//   excludePattern: "thank-you-v*"
-//   -> fires on /thank-you but NOT on /thank-you-variant
+// matchType: "contains" (glob via micromatch) or "exact" (full URL equals pattern)
+// ignoreCase: case-insensitive matching (default true)
+// ignoreQuery: strip ?query_string before matching (default true)
 
 import micromatch from "micromatch";
 import { db } from "@/lib/db";
@@ -22,22 +21,44 @@ interface MatchUrlRulesArgs {
   variantId?: string | null;
 }
 
-function testGlob(url: string, path: string, pattern: string): boolean {
+function stripQuery(s: string): string {
+  const i = s.indexOf("?");
+  return i === -1 ? s : s.slice(0, i);
+}
+
+function prepareUrl(url: string, ignoreCase: boolean, ignoreQuery: boolean): string {
+  let u = url;
+  if (ignoreQuery) u = stripQuery(u);
+  if (ignoreCase) u = u.toLowerCase();
+  return u;
+}
+
+function testGlob(url: string, path: string, pattern: string, ignoreCase: boolean, ignoreQuery: boolean): boolean {
+  const u = ignoreQuery ? stripQuery(url) : url;
+  const p = ignoreQuery ? stripQuery(path) : path;
   return (
-    micromatch.isMatch(url, pattern, { nocase: true }) ||
-    micromatch.isMatch(path, pattern, { nocase: true })
+    micromatch.isMatch(u, pattern, { nocase: ignoreCase }) ||
+    micromatch.isMatch(p, pattern, { nocase: ignoreCase })
   );
 }
 
-function testExact(url: string, path: string, pattern: string): boolean {
-  const p = pattern.toLowerCase();
-  return url.toLowerCase() === p || path.toLowerCase() === p;
+function testExact(url: string, path: string, pattern: string, ignoreCase: boolean, ignoreQuery: boolean): boolean {
+  const u = prepareUrl(url, ignoreCase, ignoreQuery);
+  const p = prepareUrl(path, ignoreCase, ignoreQuery);
+  const pat = ignoreCase ? pattern.toLowerCase() : pattern;
+  return u === pat || p === pat;
 }
 
-function testRule(url: string, path: string, pattern: string, matchType: string): boolean {
-  return matchType === "exact"
-    ? testExact(url, path, pattern)
-    : testGlob(url, path, pattern);
+interface RuleOptions {
+  matchType: string;
+  ignoreCase: boolean;
+  ignoreQuery: boolean;
+}
+
+function testRule(url: string, path: string, pattern: string, opts: RuleOptions): boolean {
+  return opts.matchType === "exact"
+    ? testExact(url, path, pattern, opts.ignoreCase, opts.ignoreQuery)
+    : testGlob(url, path, pattern, opts.ignoreCase, opts.ignoreQuery);
 }
 
 export async function matchAndFireUrlRules({
@@ -55,10 +76,15 @@ export async function matchAndFireUrlRules({
   if (rules.length === 0) return;
 
   const matched = rules.filter((rule) => {
+    const opts: RuleOptions = {
+      matchType: rule.matchType,
+      ignoreCase: rule.ignoreCase,
+      ignoreQuery: rule.ignoreQuery,
+    };
     // Must match include pattern
-    if (!testRule(url, path, rule.pattern, rule.matchType)) return false;
+    if (!testRule(url, path, rule.pattern, opts)) return false;
     // Must NOT match exclude pattern (only applies to contains/glob mode)
-    if (rule.excludePattern && rule.matchType !== "exact" && testGlob(url, path, rule.excludePattern)) return false;
+    if (rule.excludePattern && rule.matchType !== "exact" && testGlob(url, path, rule.excludePattern, opts.ignoreCase, opts.ignoreQuery)) return false;
     return true;
   });
 
@@ -110,7 +136,7 @@ export function urlMatchesFunnelStep(
   pattern: string,
   excludePattern?: string | null
 ): boolean {
-  if (!testGlob(url, path, pattern)) return false;
-  if (excludePattern && testGlob(url, path, excludePattern)) return false;
+  if (!testGlob(url, path, pattern, true, true)) return false;
+  if (excludePattern && testGlob(url, path, excludePattern, true, true)) return false;
   return true;
 }

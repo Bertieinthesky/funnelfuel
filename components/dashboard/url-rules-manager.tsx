@@ -3,7 +3,7 @@
 import { cn } from "@/lib/cn";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Trash2, Power, Tag, X } from "lucide-react";
+import { Plus, Trash2, Power, Tag } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -15,6 +15,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 
 const EVENT_TYPES = [
   "PAGE_VIEW",
@@ -38,6 +40,8 @@ interface UrlRule {
   matchType: string;
   pattern: string;
   excludePattern: string | null;
+  ignoreCase: boolean;
+  ignoreQuery: boolean;
   eventType: string;
   tags: string[];
   funnelStepId: string | null;
@@ -60,6 +64,8 @@ export function UrlRulesManager({ orgId, initialRules }: Props) {
     matchType: "contains" as string,
     pattern: "",
     excludePattern: "",
+    ignoreCase: true,
+    ignoreQuery: true,
     eventType: "URL_RULE_MATCH" as string,
     tags: "" as string,
   });
@@ -75,6 +81,8 @@ export function UrlRulesManager({ orgId, initialRules }: Props) {
           matchType: form.matchType,
           pattern: form.pattern,
           excludePattern: form.matchType === "contains" ? (form.excludePattern || undefined) : undefined,
+          ignoreCase: form.ignoreCase,
+          ignoreQuery: form.ignoreQuery,
           eventType: form.eventType,
           tags: form.tags
             .split(",")
@@ -83,7 +91,7 @@ export function UrlRulesManager({ orgId, initialRules }: Props) {
         }),
       });
       if (res.ok) {
-        setForm({ name: "", matchType: "contains", pattern: "", excludePattern: "", eventType: "URL_RULE_MATCH", tags: "" });
+        setForm({ name: "", matchType: "contains", pattern: "", excludePattern: "", ignoreCase: true, ignoreQuery: true, eventType: "URL_RULE_MATCH", tags: "" });
         setShowForm(false);
         router.refresh();
       }
@@ -177,7 +185,7 @@ export function UrlRulesManager({ orgId, initialRules }: Props) {
                 <Input
                   type="text"
                   placeholder={form.matchType === "exact"
-                    ? "e.g. https://www.10xbnb.com/co-listing-secrets"
+                    ? "e.g. https://www.yourdomain.com/thank-you"
                     : "e.g. **/thank-you* or */checkout*"
                   }
                   value={form.pattern}
@@ -199,6 +207,28 @@ export function UrlRulesManager({ orgId, initialRules }: Props) {
                   />
                 </div>
               )}
+              <div className="md:col-span-2 flex items-center gap-6">
+                <div className="flex items-center gap-2">
+                  <Switch
+                    id="ignoreCase"
+                    checked={form.ignoreCase}
+                    onCheckedChange={(v) => setForm({ ...form, ignoreCase: v })}
+                  />
+                  <Label htmlFor="ignoreCase" className="text-xs text-muted-foreground cursor-pointer">
+                    Ignore case
+                  </Label>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Switch
+                    id="ignoreQuery"
+                    checked={form.ignoreQuery}
+                    onCheckedChange={(v) => setForm({ ...form, ignoreQuery: v })}
+                  />
+                  <Label htmlFor="ignoreQuery" className="text-xs text-muted-foreground cursor-pointer">
+                    Ignore query string (?utm_source=...)
+                  </Label>
+                </div>
+              </div>
               <div className="md:col-span-2">
                 <label className="mb-1.5 block text-[11px] font-medium uppercase tracking-wider text-muted-foreground/60">
                   Tags (comma-separated)
@@ -283,6 +313,16 @@ export function UrlRulesManager({ orgId, initialRules }: Props) {
                             {rule.excludePattern}
                           </code>
                         </span>
+                      )}
+                      {!rule.ignoreCase && (
+                        <Badge variant="secondary" className="text-[10px] px-1.5 py-0 bg-secondary text-muted-foreground">
+                          case-sensitive
+                        </Badge>
+                      )}
+                      {!rule.ignoreQuery && (
+                        <Badge variant="secondary" className="text-[10px] px-1.5 py-0 bg-secondary text-muted-foreground">
+                          includes query
+                        </Badge>
                       )}
                     </div>
                     {rule.tags.length > 0 && (
