@@ -27,6 +27,7 @@ model Organization {
   urlRules    UrlRule[]
   experiments Experiment[]
   alerts      Alert[]
+  metrics     Metric[]
 
   @@map("organizations")
 }
@@ -301,6 +302,7 @@ model Funnel {
   events      Event[]
   experiments Experiment[]
   alerts      Alert[]
+  kpis        FunnelKpi[]
 
   @@index([organizationId])
   @@map("funnels")
@@ -310,6 +312,7 @@ enum FunnelType {
   LOW_TICKET
   WEBINAR
   VSL_APPLICATION
+  WORKSHOP
   CUSTOM
 }
 
@@ -439,6 +442,91 @@ model ExperimentAssignment {
   @@unique([sessionKey, experimentId])
   @@index([contactId, experimentId])
   @@map("experiment_assignments")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CUSTOM METRICS
+// ─────────────────────────────────────────────────────────────────────────────
+
+model Metric {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  name        String
+  description String?
+
+  // "EVENT" = count events of a given type
+  // "REVENUE" = sum of payment amounts
+  // "CALCULATED" = formula combining other metrics (numerator / denominator)
+  kind MetricKind
+
+  // For kind=EVENT: which EventType to count
+  eventType EventType?
+
+  // For kind=EVENT: how to aggregate
+  aggregation MetricAggregation @default(TOTAL_EVENTS)
+
+  // For aggregation=EVENT_VALUE_*: which JSON key in event.data to aggregate
+  valueProperty String?
+
+  // For kind=CALCULATED: formula references (numerator / denominator)
+  numeratorMetricId   String?
+  numeratorMetric     Metric? @relation("NumeratorMetric", fields: [numeratorMetricId], references: [id])
+  denominatorMetricId String?
+  denominatorMetric   Metric? @relation("DenominatorMetric", fields: [denominatorMetricId], references: [id])
+
+  // For kind=REVENUE: optional product filter
+  productFilter String?
+
+  // Display format
+  format MetricFormat @default(NUMBER)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Self-referential back-relations
+  numeratorOf   Metric[] @relation("NumeratorMetric")
+  denominatorOf Metric[] @relation("DenominatorMetric")
+
+  // Used as KPI display on funnels
+  funnelKpis FunnelKpi[]
+
+  @@unique([organizationId, name])
+  @@index([organizationId])
+  @@map("metrics")
+}
+
+enum MetricKind {
+  EVENT
+  REVENUE
+  CALCULATED
+}
+
+enum MetricAggregation {
+  TOTAL_EVENTS
+  UNIQUE_CONTACTS
+  EVENT_VALUE_SUM
+  EVENT_VALUE_AVG
+}
+
+enum MetricFormat {
+  NUMBER
+  CURRENCY
+  PERCENTAGE
+}
+
+model FunnelKpi {
+  id       String @id @default(cuid())
+  funnelId String
+  funnel   Funnel @relation(fields: [funnelId], references: [id], onDelete: Cascade)
+  metricId String
+  metric   Metric @relation(fields: [metricId], references: [id], onDelete: Cascade)
+  order    Int    @default(0)
+
+  @@unique([funnelId, metricId])
+  @@index([funnelId])
+  @@map("funnel_kpis")
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

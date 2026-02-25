@@ -13,7 +13,7 @@ import {
   Users,
   Activity,
   FileBarChart,
-  Settings,
+  BarChart3,
 } from "lucide-react";
 
 const navItems = [
@@ -24,7 +24,7 @@ const navItems = [
   { label: "Split Tests", icon: GitBranch, path: "/split-tests" },
   { label: "Contacts", icon: Users, path: "/contacts" },
   { label: "Report", icon: FileBarChart, path: "/reports" },
-  { label: "Setup", icon: Settings, path: "/setup" },
+  { label: "Metrics", icon: BarChart3, path: "/metrics" },
 ];
 
 export function Sidebar({ orgId, orgName }: { orgId: string; orgName: string }) {

@@ -27,6 +27,7 @@ const FUNNEL_TYPES = [
   { value: "LOW_TICKET", label: "Low Ticket" },
   { value: "WEBINAR", label: "Webinar" },
   { value: "VSL_APPLICATION", label: "VSL / Application" },
+  { value: "WORKSHOP", label: "Workshop" },
   { value: "CUSTOM", label: "Custom" },
 ];
 
