@@ -6,7 +6,15 @@ import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Eye,
   FormInput,
@@ -21,6 +29,7 @@ import {
   Zap,
   Globe,
   MousePointerClick,
+  Filter,
 } from "lucide-react";
 
 interface TimelineItem {
@@ -72,10 +81,38 @@ const filterOptions = [
 
 export function JourneyTimeline({ items }: { items: TimelineItem[] }) {
   const [filter, setFilter] = useState("all");
+  const [eventTypeFilter, setEventTypeFilter] = useState("all");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
 
-  const filtered =
-    filter === "all" ? items : items.filter((i) => i.type === filter);
+  // Get unique event types for the dropdown
+  const eventTypes = [
+    ...new Set(
+      items
+        .filter((i) => i.type === "event")
+        .map((i) => String(i.data.eventType))
+    ),
+  ].sort();
+
+  let filtered = filter === "all" ? items : items.filter((i) => i.type === filter);
+
+  // Event type sub-filter
+  if (eventTypeFilter !== "all") {
+    filtered = filtered.filter(
+      (i) => i.type !== "event" || String(i.data.eventType) === eventTypeFilter
+    );
+  }
+
+  // Date range filter
+  if (dateFrom) {
+    const from = new Date(dateFrom + "T00:00:00");
+    filtered = filtered.filter((i) => new Date(i.timestamp) >= from);
+  }
+  if (dateTo) {
+    const to = new Date(dateTo + "T23:59:59.999");
+    filtered = filtered.filter((i) => new Date(i.timestamp) <= to);
+  }
 
   function toggle(id: string) {
     setExpanded((prev) => {
@@ -112,6 +149,57 @@ export function JourneyTimeline({ items }: { items: TimelineItem[] }) {
           </Button>
         ))}
       </div>
+
+      {/* Sub-filters: event type + date range */}
+      {(eventTypes.length > 0 || items.length > 0) && (
+        <div className="mb-4 flex flex-wrap items-center gap-2">
+          {eventTypes.length > 0 && (
+            <Select value={eventTypeFilter} onValueChange={setEventTypeFilter}>
+              <SelectTrigger className="h-7 w-[160px] text-xs">
+                <Filter className="mr-1 h-3 w-3 text-muted-foreground/60" />
+                <SelectValue placeholder="Event type" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All event types</SelectItem>
+                {eventTypes.map((et) => (
+                  <SelectItem key={et} value={et}>
+                    {et.replace(/_/g, " ")}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+          <Input
+            type="date"
+            value={dateFrom}
+            onChange={(e) => setDateFrom(e.target.value)}
+            className="h-7 w-[140px] text-xs"
+            placeholder="From"
+          />
+          <span className="text-[10px] text-muted-foreground/60">to</span>
+          <Input
+            type="date"
+            value={dateTo}
+            onChange={(e) => setDateTo(e.target.value)}
+            className="h-7 w-[140px] text-xs"
+            placeholder="To"
+          />
+          {(eventTypeFilter !== "all" || dateFrom || dateTo) && (
+            <Button
+              variant="ghost"
+              size="xs"
+              onClick={() => {
+                setEventTypeFilter("all");
+                setDateFrom("");
+                setDateTo("");
+              }}
+              className="text-[10px] text-muted-foreground/60 hover:text-foreground"
+            >
+              Clear filters
+            </Button>
+          )}
+        </div>
+      )}
 
       {/* Timeline */}
       <div className="relative space-y-0">
