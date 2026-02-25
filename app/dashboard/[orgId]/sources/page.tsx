@@ -57,7 +57,7 @@ export default async function SourcesPage({
         ))}
       </div>
 
-      <SourceTable data={sources} />
+      <SourceTable data={sources} orgId={orgId} />
     </div>
   );
 }

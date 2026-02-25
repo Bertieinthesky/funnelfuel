@@ -12,6 +12,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import Link from "next/link";
 
 interface SourceRow {
   source: string;
@@ -34,7 +35,12 @@ const columns: { key: SortKey; label: string; format: (v: number) => string }[] 
   { key: "rpv", label: "Rev/Visitor", format: (v) => `$${v.toFixed(2)}` },
 ];
 
-export function SourceTable({ data }: { data: SourceRow[] }) {
+interface Props {
+  data: SourceRow[];
+  orgId?: string;
+}
+
+export function SourceTable({ data, orgId }: Props) {
   const [sortKey, setSortKey] = useState<SortKey>("revenue");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
 
@@ -89,42 +95,71 @@ export function SourceTable({ data }: { data: SourceRow[] }) {
           </TableRow>
         </TableHeader>
         <TableBody>
-          {sorted.map((row, i) => (
-            <TableRow
-              key={row.source}
-              className={cn(
-                "border-border transition-colors",
-                i === 0 && "bg-primary/5"
-              )}
-            >
-              <TableCell className="px-4 font-medium">
-                <div className="flex items-center gap-2">
-                  <span
-                    className={cn(
-                      "inline-block h-2 w-2 rounded-full",
-                      row.source === "direct"
-                        ? "bg-muted-foreground/40"
-                        : i === 0
-                          ? "bg-primary"
-                          : "bg-muted-foreground"
-                    )}
-                  />
-                  {row.source}
-                </div>
-              </TableCell>
-              {columns.map((col) => (
-                <TableCell
-                  key={col.key}
-                  className={cn(
-                    "px-4 text-right tabular-nums",
-                    col.key === "revenue" ? "font-medium text-foreground" : "text-muted-foreground"
+          {sorted.map((row, i) => {
+            const sourceHref = orgId
+              ? `/dashboard/${orgId}/sources/${encodeURIComponent(row.source)}`
+              : undefined;
+
+            return (
+              <TableRow
+                key={row.source}
+                className={cn(
+                  "border-border transition-colors",
+                  i === 0 && "bg-primary/5",
+                  sourceHref && "cursor-pointer hover:bg-secondary/50"
+                )}
+              >
+                <TableCell className="px-4 font-medium">
+                  {sourceHref ? (
+                    <Link href={sourceHref} className="flex items-center gap-2 hover:text-primary transition-colors">
+                      <span
+                        className={cn(
+                          "inline-block h-2 w-2 rounded-full",
+                          row.source === "direct"
+                            ? "bg-muted-foreground/40"
+                            : i === 0
+                              ? "bg-primary"
+                              : "bg-muted-foreground"
+                        )}
+                      />
+                      {row.source}
+                    </Link>
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <span
+                        className={cn(
+                          "inline-block h-2 w-2 rounded-full",
+                          row.source === "direct"
+                            ? "bg-muted-foreground/40"
+                            : i === 0
+                              ? "bg-primary"
+                              : "bg-muted-foreground"
+                        )}
+                      />
+                      {row.source}
+                    </div>
                   )}
-                >
-                  {col.format(row[col.key])}
                 </TableCell>
-              ))}
-            </TableRow>
-          ))}
+                {columns.map((col) => (
+                  <TableCell
+                    key={col.key}
+                    className={cn(
+                      "px-4 text-right tabular-nums",
+                      col.key === "revenue" ? "font-medium text-foreground" : "text-muted-foreground"
+                    )}
+                  >
+                    {sourceHref ? (
+                      <Link href={sourceHref} className="block">
+                        {col.format(row[col.key])}
+                      </Link>
+                    ) : (
+                      col.format(row[col.key])
+                    )}
+                  </TableCell>
+                ))}
+              </TableRow>
+            );
+          })}
         </TableBody>
       </Table>
     </Card>
