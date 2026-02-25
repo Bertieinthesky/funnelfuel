@@ -4,18 +4,28 @@ import { parseDateRange } from "@/lib/dashboard/date-range";
 import { getSourceBreakdown } from "@/lib/dashboard/queries";
 import { Card, CardContent } from "@/components/ui/card";
 import { CreateSourceLink } from "@/components/dashboard/create-source-link";
+import { SegmentFilter } from "@/components/dashboard/segment-filter";
+import { db } from "@/lib/db";
 
 export default async function SourcesPage({
   params,
   searchParams,
 }: {
   params: Promise<{ orgId: string }>;
-  searchParams: Promise<{ range?: string }>;
+  searchParams: Promise<{ range?: string; segment?: string }>;
 }) {
   const { orgId } = await params;
-  const { range } = await searchParams;
+  const { range, segment } = await searchParams;
   const dateRange = parseDateRange(range ?? null);
-  const sources = await getSourceBreakdown(orgId, dateRange);
+
+  const [sources, segments] = await Promise.all([
+    getSourceBreakdown(orgId, dateRange, segment || undefined),
+    db.segment.findMany({
+      where: { organizationId: orgId },
+      select: { id: true, name: true },
+      orderBy: { name: "asc" },
+    }),
+  ]);
 
   const totals = sources.reduce(
     (acc, s) => ({
@@ -38,12 +48,13 @@ export default async function SourcesPage({
         </div>
         <div className="flex items-center gap-2">
           <CreateSourceLink orgId={orgId} />
+          {segments.length > 0 && <SegmentFilter segments={segments} />}
           <DateRangePicker />
         </div>
       </div>
 
       {/* Summary cards */}
-      <div className="grid grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         {[
           { label: "Total Sources", value: sources.length.toString() },
           { label: "Total Visitors", value: totals.visitors.toLocaleString() },

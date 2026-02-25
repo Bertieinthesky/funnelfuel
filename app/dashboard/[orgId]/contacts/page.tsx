@@ -1,4 +1,5 @@
 import { getContacts, getFilterOptions, type ContactFilters } from "@/lib/dashboard/queries";
+import { db } from "@/lib/db";
 import { parseDateRange } from "@/lib/dashboard/date-range";
 import { ContactFilters as ContactFiltersUI } from "@/components/dashboard/contact-filters";
 import { ContactsChart } from "@/components/dashboard/contacts-chart";
@@ -43,10 +44,16 @@ export default async function ContactsPage({
     filters.dateFrom = range.from;
     filters.dateTo = range.to;
   }
+  if (sp.segment) filters.segmentId = sp.segment;
 
-  const [{ contacts, total, totalPages }, filterOptions] = await Promise.all([
+  const [{ contacts, total, totalPages }, filterOptions, segments] = await Promise.all([
     getContacts(orgId, page, 50, filters),
     getFilterOptions(orgId),
+    db.segment.findMany({
+      where: { organizationId: orgId },
+      select: { id: true, name: true },
+      orderBy: { name: "asc" },
+    }),
   ]);
 
   return (
@@ -66,6 +73,7 @@ export default async function ContactsPage({
         sources={filterOptions.sources}
         titles={filterOptions.titles}
         tags={filterOptions.tags}
+        segments={segments}
       />
 
       {contacts.length === 0 ? (

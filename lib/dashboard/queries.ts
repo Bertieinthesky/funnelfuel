@@ -58,15 +58,149 @@ export async function getKpiMetrics(orgId: string, range: DateRange) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// SEGMENT RESOLUTION HELPER
+// ─────────────────────────────────────────────────────────────────────────────
+
+interface ResolvedSegment {
+  sources: string[];
+  titles: string[];
+  tags: string[];
+  funnelId?: string;
+  urls: string[];
+  eventTypes: string[];
+}
+
+export async function resolveSegment(
+  orgId: string,
+  segmentId: string
+): Promise<ResolvedSegment | null> {
+  const segment = await db.segment.findFirst({
+    where: { id: segmentId, organizationId: orgId },
+  });
+  if (!segment || !Array.isArray(segment.rules)) return null;
+
+  const result: ResolvedSegment = {
+    sources: [],
+    titles: [],
+    tags: [],
+    urls: [],
+    eventTypes: [],
+  };
+
+  for (const rule of segment.rules as {
+    field: string;
+    op: string;
+    value: string;
+  }[]) {
+    // Only handle "eq" and "contains" for now
+    if (rule.field === "source" && rule.op === "eq")
+      result.sources.push(rule.value);
+    else if (rule.field === "title" && rule.op === "eq")
+      result.titles.push(rule.value);
+    else if (rule.field === "tag" && rule.op === "eq")
+      result.tags.push(rule.value);
+    else if (rule.field === "funnel" && rule.op === "eq")
+      result.funnelId = rule.value;
+    else if (rule.field === "url" && (rule.op === "eq" || rule.op === "contains"))
+      result.urls.push(rule.value);
+    else if (rule.field === "eventType" && rule.op === "eq")
+      result.eventTypes.push(rule.value);
+  }
+
+  return result;
+}
+
+/**
+ * Given a resolved segment, find matching contactIds.
+ * Returns null if no segment (= no filtering), or a Set of contactIds.
+ */
+export async function getSegmentContactIds(
+  orgId: string,
+  segmentId: string
+): Promise<Set<string> | null> {
+  const seg = await resolveSegment(orgId, segmentId);
+  if (!seg) return null;
+
+  // Build contact where clause from segment rules
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const contactWhere: Record<string, any> = { organizationId: orgId };
+
+  if (seg.tags.length > 0) {
+    contactWhere.tags = { hasSome: seg.tags };
+  }
+
+  // Source/title → session filter
+  if (seg.sources.length > 0 || seg.titles.length > 0) {
+    const sessionFilter: Record<string, unknown> = {};
+    if (seg.sources.length > 0) {
+      sessionFilter.OR = [
+        { ffSource: { in: seg.sources } },
+        { utmSource: { in: seg.sources } },
+      ];
+    }
+    if (seg.titles.length > 0) {
+      sessionFilter.ffTitle = { in: seg.titles };
+    }
+    contactWhere.sessions = { some: sessionFilter };
+  }
+
+  // Event type filter
+  if (seg.eventTypes.length > 0) {
+    contactWhere.events = {
+      some: { type: { in: seg.eventTypes } },
+    };
+  }
+
+  // URL filter → session → page views
+  if (seg.urls.length > 0) {
+    contactWhere.sessions = {
+      ...contactWhere.sessions,
+      some: {
+        ...(contactWhere.sessions?.some ?? {}),
+        pageViews: {
+          some: {
+            OR: seg.urls.map((u) => ({ path: { contains: u } })),
+          },
+        },
+      },
+    };
+  }
+
+  // Funnel filter
+  if (seg.funnelId) {
+    contactWhere.events = {
+      ...contactWhere.events,
+      some: {
+        ...(contactWhere.events?.some ?? {}),
+        funnelId: seg.funnelId,
+      },
+    };
+  }
+
+  const contacts = await db.contact.findMany({
+    where: contactWhere,
+    select: { id: true },
+  });
+
+  return new Set(contacts.map((c) => c.id));
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // SOURCE BREAKDOWN
 // ─────────────────────────────────────────────────────────────────────────────
 
-export async function getSourceBreakdown(orgId: string, range: DateRange) {
+export async function getSourceBreakdown(orgId: string, range: DateRange, segmentId?: string) {
+  // Resolve segment → contact IDs if provided
+  const segmentContactIds = segmentId
+    ? await getSegmentContactIds(orgId, segmentId)
+    : null;
+
   // Get sessions grouped by source (ffSource or utmSource) + title
   const sessions = await db.session.findMany({
     where: {
       organizationId: orgId,
       firstSeen: { gte: range.from, lte: range.to },
+      ...(segmentContactIds ? { contactId: { in: [...segmentContactIds] } } : {}),
     },
     select: {
       id: true,
@@ -464,6 +598,7 @@ export interface ContactFilters {
   leadQuality?: string;
   dateFrom?: Date;
   dateTo?: Date;
+  segmentId?: string;
 }
 
 export async function getContacts(
@@ -515,6 +650,14 @@ export async function getContacts(
   // Event type filter: contacts who have an event of that type
   if (filters.eventType) {
     where.events = { some: { type: filters.eventType } };
+  }
+
+  // Segment filter: resolve segment rules → matching contact IDs
+  if (filters.segmentId) {
+    const segContactIds = await getSegmentContactIds(orgId, filters.segmentId);
+    if (segContactIds) {
+      where.id = { in: [...segContactIds] };
+    }
   }
 
   const [contacts, total] = await Promise.all([

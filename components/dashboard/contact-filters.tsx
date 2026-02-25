@@ -19,6 +19,7 @@ interface ContactFiltersProps {
   sources: string[];
   titles: string[];
   tags: string[];
+  segments?: { id: string; name: string }[];
 }
 
 const eventTypes = [
@@ -41,7 +42,7 @@ const qualityOptions = [
   { label: "Unknown", value: "UNKNOWN" },
 ];
 
-export function ContactFilters({ orgId, sources, titles, tags }: ContactFiltersProps) {
+export function ContactFilters({ orgId, sources, titles, tags, segments }: ContactFiltersProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [searchInput, setSearchInput] = useState(searchParams.get("q") || "");
@@ -74,6 +75,7 @@ export function ContactFilters({ orgId, sources, titles, tags }: ContactFiltersP
     searchParams.get("tag") ||
     searchParams.get("eventType") ||
     searchParams.get("quality") ||
+    searchParams.get("segment") ||
     searchParams.get("range");
 
   const exportUrl = `/api/dashboard/${orgId}/contacts/export?${searchParams.toString()}`;
@@ -181,6 +183,23 @@ export function ContactFilters({ orgId, sources, titles, tags }: ContactFiltersP
               <SelectItem value="all">All Titles</SelectItem>
               {titles.map((t) => (
                 <SelectItem key={t} value={t}>{t}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
+
+        {segments && segments.length > 0 && (
+          <Select
+            value={searchParams.get("segment") || "all"}
+            onValueChange={(v) => setParam("segment", v)}
+          >
+            <SelectTrigger size="sm" className="text-xs">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Segments</SelectItem>
+              {segments.map((s) => (
+                <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
               ))}
             </SelectContent>
           </Select>
