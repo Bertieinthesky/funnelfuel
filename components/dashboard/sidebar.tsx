@@ -16,6 +16,7 @@ import {
   BarChart3,
   Layers,
   Bell,
+  Settings,
 } from "lucide-react";
 
 interface NavItem {
@@ -57,6 +58,11 @@ const navSections: NavSection[] = [
       { label: "Report", icon: FileBarChart, path: "/reports" },
       { label: "Metrics", icon: BarChart3, path: "/metrics" },
       { label: "Alerts", icon: Bell, path: "/alerts" },
+    ],
+  },
+  {
+    items: [
+      { label: "Setup", icon: Settings, path: "/setup" },
     ],
   },
 ];
