@@ -292,6 +292,7 @@ export default async function FunnelDetailPage({
         orgId={orgId}
         funnelId={funnelId}
         steps={stepCounts}
+        stepHealth={health.steps}
         range={range}
       />
 

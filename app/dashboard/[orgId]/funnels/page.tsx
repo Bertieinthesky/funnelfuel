@@ -3,7 +3,9 @@ import { DateRangePicker } from "@/components/dashboard/date-range-picker";
 import { parseDateRange } from "@/lib/dashboard/date-range";
 import { getFunnelOverview } from "@/lib/dashboard/queries";
 import { Card } from "@/components/ui/card";
-import { CreateFunnelDialog } from "@/components/dashboard/create-funnel-dialog";
+import { Button } from "@/components/ui/button";
+import { Plus } from "lucide-react";
+import Link from "next/link";
 
 export default async function FunnelsPage({
   params,
@@ -33,7 +35,12 @@ export default async function FunnelsPage({
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <CreateFunnelDialog orgId={orgId} />
+          <Link href={`/dashboard/${orgId}/funnels/new`}>
+            <Button size="sm">
+              <Plus className="h-3.5 w-3.5" />
+              Add Funnel
+            </Button>
+          </Link>
           <DateRangePicker />
         </div>
       </div>

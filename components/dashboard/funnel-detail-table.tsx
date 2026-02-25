@@ -11,7 +11,9 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import type { StepCount } from "@/lib/dashboard/funnel-detail";
+import type { StepCount, StepHealth } from "@/lib/dashboard/funnel-detail";
+import { TrendingUp, TrendingDown, Minus } from "lucide-react";
+import { cn } from "@/lib/cn";
 
 interface SourceRow {
   source: string;
@@ -26,10 +28,11 @@ interface Props {
   orgId: string;
   funnelId: string;
   steps: StepCount[];
+  stepHealth?: StepHealth[];
   range?: string;
 }
 
-export function FunnelDetailTable({ orgId, funnelId, steps, range }: Props) {
+export function FunnelDetailTable({ orgId, funnelId, steps, stepHealth, range }: Props) {
   const [sources, setSources] = useState<SourceRow[]>([]);
   const [loadingSources, setLoadingSources] = useState(false);
 
@@ -72,6 +75,16 @@ export function FunnelDetailTable({ orgId, funnelId, steps, range }: Props) {
                     <TableHead className="text-[11px] text-right">
                       Events
                     </TableHead>
+                    {stepHealth && stepHealth.length > 0 && (
+                      <TableHead className="text-[11px] text-right">
+                        Prior Period
+                      </TableHead>
+                    )}
+                    {stepHealth && stepHealth.length > 0 && (
+                      <TableHead className="text-[11px] text-right">
+                        vs Prior
+                      </TableHead>
+                    )}
                     <TableHead className="text-[11px] text-right">
                       Conv. Rate
                     </TableHead>
@@ -81,36 +94,77 @@ export function FunnelDetailTable({ orgId, funnelId, steps, range }: Props) {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {steps.map((step, i) => (
-                    <TableRow key={step.id}>
-                      <TableCell className="text-xs text-muted-foreground">
-                        {step.order + 1}
-                      </TableCell>
-                      <TableCell>
-                        <span className="text-sm font-medium">
-                          {step.name}
-                        </span>
-                        <span className="ml-2 text-[10px] text-muted-foreground/60">
-                          {step.type.replace(/_/g, " ")}
-                        </span>
-                      </TableCell>
-                      <TableCell className="text-right tabular-nums text-sm">
-                        {step.count.toLocaleString()}
-                      </TableCell>
-                      <TableCell className="text-right tabular-nums text-sm">
-                        {step.cumulativePct.toFixed(1)}%
-                      </TableCell>
-                      <TableCell className="text-right tabular-nums text-sm">
-                        {i > 0 ? (
-                          <span className="text-destructive">
-                            -{step.dropoffPct.toFixed(1)}%
+                  {steps.map((step, i) => {
+                    const health = stepHealth?.find(
+                      (h) => h.stepId === step.id
+                    );
+                    return (
+                      <TableRow key={step.id}>
+                        <TableCell className="text-xs text-muted-foreground">
+                          {step.order + 1}
+                        </TableCell>
+                        <TableCell>
+                          <span className="text-sm font-medium">
+                            {step.name}
                           </span>
-                        ) : (
-                          <span className="text-muted-foreground/40">—</span>
+                          <span className="ml-2 text-[10px] text-muted-foreground/60">
+                            {step.type.replace(/_/g, " ")}
+                          </span>
+                        </TableCell>
+                        <TableCell className="text-right tabular-nums text-sm">
+                          {step.count.toLocaleString()}
+                        </TableCell>
+                        {stepHealth && stepHealth.length > 0 && (
+                          <TableCell className="text-right tabular-nums text-sm text-muted-foreground">
+                            {health
+                              ? health.previousCount.toLocaleString()
+                              : "—"}
+                          </TableCell>
                         )}
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                        {stepHealth && stepHealth.length > 0 && (
+                          <TableCell className="text-right text-sm">
+                            {health ? (
+                              <span
+                                className={cn(
+                                  "inline-flex items-center gap-1 tabular-nums",
+                                  health.changePct > 0 && "text-green",
+                                  health.changePct < 0 && "text-red",
+                                  health.changePct === 0 &&
+                                    "text-muted-foreground/60"
+                                )}
+                              >
+                                {health.changePct > 0 ? (
+                                  <TrendingUp className="h-3 w-3" />
+                                ) : health.changePct < 0 ? (
+                                  <TrendingDown className="h-3 w-3" />
+                                ) : (
+                                  <Minus className="h-3 w-3" />
+                                )}
+                                {health.changePct > 0 ? "+" : ""}
+                                {health.changePct.toFixed(1)}%
+                              </span>
+                            ) : (
+                              <span className="text-muted-foreground/40">
+                                —
+                              </span>
+                            )}
+                          </TableCell>
+                        )}
+                        <TableCell className="text-right tabular-nums text-sm">
+                          {step.cumulativePct.toFixed(1)}%
+                        </TableCell>
+                        <TableCell className="text-right tabular-nums text-sm">
+                          {i > 0 ? (
+                            <span className="text-destructive">
+                              -{step.dropoffPct.toFixed(1)}%
+                            </span>
+                          ) : (
+                            <span className="text-muted-foreground/40">—</span>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
                 </TableBody>
               </Table>
             </div>

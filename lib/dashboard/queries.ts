@@ -549,6 +549,8 @@ export async function getContactJourney(orgId: string, contactId: string) {
         utmSource: true,
         utmMedium: true,
         utmCampaign: true,
+        utmContent: true,
+        utmTerm: true,
         referrer: true,
         landingPage: true,
         ip: true,
