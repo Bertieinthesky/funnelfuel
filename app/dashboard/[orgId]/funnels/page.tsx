@@ -3,10 +3,7 @@ import { DateRangePicker } from "@/components/dashboard/date-range-picker";
 import { parseDateRange } from "@/lib/dashboard/date-range";
 import { getFunnelOverview } from "@/lib/dashboard/queries";
 import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { CreateFunnelDialog } from "@/components/dashboard/create-funnel-dialog";
-import { Radio } from "lucide-react";
-import Link from "next/link";
 
 export default async function FunnelsPage({
   params,
@@ -37,12 +34,6 @@ export default async function FunnelsPage({
         </div>
         <div className="flex items-center gap-2">
           <CreateFunnelDialog orgId={orgId} />
-          <Button variant="outline" size="sm" asChild>
-            <Link href={`/dashboard/${orgId}/sources`}>
-              <Radio className="h-3.5 w-3.5" />
-              Add Source
-            </Link>
-          </Button>
           <DateRangePicker />
         </div>
       </div>
@@ -76,6 +67,8 @@ export default async function FunnelsPage({
                     type={funnel.type}
                     status={funnel.status}
                     activeTests={funnel.activeTests}
+                    todayEvents={funnel.todayEvents}
+                    todayRevenue={funnel.todayRevenue}
                     steps={funnel.steps}
                   />
                 ))}
@@ -98,6 +91,8 @@ export default async function FunnelsPage({
                     type={funnel.type}
                     status={funnel.status}
                     activeTests={funnel.activeTests}
+                    todayEvents={funnel.todayEvents}
+                    todayRevenue={funnel.todayRevenue}
                     steps={funnel.steps}
                   />
                 ))}
@@ -120,6 +115,8 @@ export default async function FunnelsPage({
                     type={funnel.type}
                     status={funnel.status}
                     activeTests={funnel.activeTests}
+                    todayEvents={funnel.todayEvents}
+                    todayRevenue={funnel.todayRevenue}
                     steps={funnel.steps}
                   />
                 ))}

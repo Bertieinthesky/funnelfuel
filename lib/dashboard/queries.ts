@@ -175,11 +175,19 @@ export async function getFunnelOverview(orgId: string, range: DateRange) {
     orderBy: { createdAt: "desc" },
   });
 
+  const funnelIds = funnels.map((f) => f.id);
+
   // Batch: single groupBy query for all step counts instead of N+1
   const allStepIds = funnels.flatMap((f) => f.steps.map((s) => s.id));
-  const stepCounts =
+
+  // Today's date boundaries
+  const now = new Date();
+  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+
+  const [stepCounts, todayEvents, todayRevenue] = await Promise.all([
     allStepIds.length > 0
-      ? await db.event.groupBy({
+      ? db.event.groupBy({
           by: ["funnelStepId"],
           where: {
             funnelStepId: { in: allStepIds },
@@ -187,9 +195,40 @@ export async function getFunnelOverview(orgId: string, range: DateRange) {
           },
           _count: true,
         })
-      : [];
+      : Promise.resolve([]),
+    // Today's event counts per funnel
+    funnelIds.length > 0
+      ? db.event.groupBy({
+          by: ["funnelId"],
+          where: {
+            funnelId: { in: funnelIds },
+            timestamp: { gte: todayStart, lte: todayEnd },
+          },
+          _count: true,
+        })
+      : Promise.resolve([]),
+    // Today's revenue per funnel
+    funnelIds.length > 0
+      ? db.payment.groupBy({
+          by: ["funnelId"],
+          where: {
+            funnelId: { in: funnelIds },
+            status: "succeeded",
+            createdAt: { gte: todayStart, lte: todayEnd },
+          },
+          _sum: { amountCents: true },
+        })
+      : Promise.resolve([]),
+  ]);
+
   const countMap = new Map(
     stepCounts.map((sc) => [sc.funnelStepId, sc._count])
+  );
+  const todayEventsMap = new Map(
+    todayEvents.map((te) => [te.funnelId, te._count])
+  );
+  const todayRevenueMap = new Map(
+    todayRevenue.map((tr) => [tr.funnelId, (tr._sum.amountCents ?? 0) / 100])
   );
 
   return funnels.map((funnel) => ({
@@ -198,6 +237,8 @@ export async function getFunnelOverview(orgId: string, range: DateRange) {
     type: funnel.type,
     status: funnel.status,
     activeTests: funnel.experiments.length,
+    todayEvents: todayEventsMap.get(funnel.id) ?? 0,
+    todayRevenue: todayRevenueMap.get(funnel.id) ?? 0,
     steps: funnel.steps.map((step) => ({
       id: step.id,
       name: step.name,

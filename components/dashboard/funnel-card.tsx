@@ -1,5 +1,5 @@
 import { cn } from "@/lib/cn";
-import { GitBranch, ChevronRight, ArrowRight } from "lucide-react";
+import { GitBranch, ChevronRight, ArrowRight, Activity, DollarSign } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
@@ -19,6 +19,8 @@ interface FunnelCardProps {
   type: string;
   status: string;
   activeTests: number;
+  todayEvents?: number;
+  todayRevenue?: number;
   steps: FunnelStep[];
 }
 
@@ -35,6 +37,8 @@ export function FunnelCard({
   type,
   status,
   activeTests,
+  todayEvents = 0,
+  todayRevenue = 0,
   steps,
 }: FunnelCardProps) {
   const firstStep = steps[0];
@@ -102,24 +106,41 @@ export function FunnelCard({
             </p>
           )}
 
-          {/* Bottom row: stats + type */}
-          <div className="mt-3 flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <Badge variant="secondary" className="text-[10px]">
-                {type.replace(/_/g, " ")}
-              </Badge>
-              {steps.length > 0 && (
-                <span className="text-xs tabular-nums text-muted-foreground">
-                  {firstStep.count.toLocaleString()} →{" "}
-                  {lastStep.count.toLocaleString()}
-                  {overallConversion && (
-                    <span className="ml-1.5 text-primary">
-                      {overallConversion}%
-                    </span>
-                  )}
-                </span>
-              )}
+          {/* Today's stats */}
+          <div className="mt-3 flex items-center gap-4 border-t border-border pt-3">
+            <div className="flex items-center gap-1.5">
+              <Activity className="h-3 w-3 text-primary" />
+              <span className="text-xs font-medium tabular-nums text-foreground">
+                {todayEvents.toLocaleString()}
+              </span>
+              <span className="text-[10px] text-muted-foreground/60">events today</span>
             </div>
+            {todayRevenue > 0 && (
+              <div className="flex items-center gap-1.5">
+                <DollarSign className="h-3 w-3 text-green" />
+                <span className="text-xs font-medium tabular-nums text-green">
+                  ${todayRevenue.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                </span>
+                <span className="text-[10px] text-muted-foreground/60">today</span>
+              </div>
+            )}
+            {steps.length > 0 && overallConversion && (
+              <div className="ml-auto flex items-center gap-1.5">
+                <span className="text-xs tabular-nums text-muted-foreground">
+                  {firstStep.count.toLocaleString()} → {lastStep.count.toLocaleString()}
+                </span>
+                <span className="text-xs font-medium tabular-nums text-primary">
+                  {overallConversion}%
+                </span>
+              </div>
+            )}
+          </div>
+
+          {/* Bottom row: type + nav */}
+          <div className="mt-2 flex items-center justify-between">
+            <Badge variant="secondary" className="text-[10px]">
+              {type.replace(/_/g, " ")}
+            </Badge>
             <ChevronRight className="h-4 w-4 text-muted-foreground/40 transition-colors group-hover:text-primary" />
           </div>
         </CardContent>

@@ -109,6 +109,8 @@ export default async function DashboardOverview({
                   type={funnel.type}
                   status={funnel.status}
                   activeTests={funnel.activeTests}
+                  todayEvents={funnel.todayEvents}
+                  todayRevenue={funnel.todayRevenue}
                   steps={funnel.steps}
                 />
               ))}
