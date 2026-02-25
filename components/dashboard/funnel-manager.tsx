@@ -89,7 +89,7 @@ interface FunnelData {
   id: string;
   name: string;
   type: string;
-  isActive: boolean;
+  status: string;
   createdAt: string;
   updatedAt: string;
   steps: FunnelStep[];
@@ -180,11 +180,12 @@ export function FunnelManager({ orgId, initialFunnels }: Props) {
     }
   }
 
-  async function toggleFunnel(funnelId: string, isActive: boolean) {
+  async function toggleFunnel(funnelId: string, currentStatus: string) {
+    const nextStatus = currentStatus === "ACTIVE" ? "PAUSED" : "ACTIVE";
     await fetch(`/api/dashboard/${orgId}/funnels/${funnelId}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ isActive: !isActive }),
+      body: JSON.stringify({ status: nextStatus }),
     });
     router.refresh();
   }
@@ -369,7 +370,7 @@ export function FunnelManager({ orgId, initialFunnels }: Props) {
                 key={funnel.id}
                 className={cn(
                   "gap-0 py-0 transition-all duration-200",
-                  funnel.isActive ? "border-border" : "border-border opacity-50"
+                  funnel.status === "ACTIVE" ? "border-border" : "border-border opacity-50"
                 )}
               >
                 {/* Header */}
@@ -387,7 +388,9 @@ export function FunnelManager({ orgId, initialFunnels }: Props) {
                         <span
                           className={cn(
                             "inline-block h-2 w-2 rounded-full",
-                            funnel.isActive ? "bg-green" : "bg-muted-foreground/40"
+                            funnel.status === "ACTIVE" ? "bg-green" :
+                            funnel.status === "PAUSED" ? "bg-yellow" :
+                            "bg-muted-foreground/40"
                           )}
                         />
                       </div>
@@ -404,9 +407,9 @@ export function FunnelManager({ orgId, initialFunnels }: Props) {
                       size="icon-xs"
                       onClick={(e) => {
                         e.stopPropagation();
-                        toggleFunnel(funnel.id, funnel.isActive);
+                        toggleFunnel(funnel.id, funnel.status);
                       }}
-                      className={funnel.isActive ? "text-green hover:text-green" : "text-muted-foreground"}
+                      className={funnel.status === "ACTIVE" ? "text-green hover:text-green" : "text-muted-foreground"}
                     >
                       <Power className="h-3.5 w-3.5" />
                     </Button>

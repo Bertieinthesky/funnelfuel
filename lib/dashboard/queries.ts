@@ -193,7 +193,7 @@ export async function getFunnelOverview(orgId: string, range: DateRange) {
         id: funnel.id,
         name: funnel.name,
         type: funnel.type,
-        isActive: funnel.isActive,
+        status: funnel.status,
         activeTests: funnel.experiments.length,
         steps: stepData,
       };

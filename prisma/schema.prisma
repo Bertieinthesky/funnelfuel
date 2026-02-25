@@ -294,7 +294,7 @@ model Funnel {
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   name           String
   type           FunnelType
-  isActive       Boolean      @default(true)
+  status         FunnelStatus @default(ACTIVE)
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
 
@@ -314,6 +314,12 @@ enum FunnelType {
   VSL_APPLICATION
   WORKSHOP
   CUSTOM
+}
+
+enum FunnelStatus {
+  ACTIVE
+  PAUSED
+  ARCHIVED
 }
 
 model FunnelStep {

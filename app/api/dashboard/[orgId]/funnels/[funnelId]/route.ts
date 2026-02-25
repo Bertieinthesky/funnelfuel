@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { FunnelType, FunnelStepType } from "@prisma/client";
+import { FunnelType, FunnelStepType, FunnelStatus } from "@prisma/client";
 import { z } from "zod";
 
 const StepSchema = z.object({
@@ -14,7 +14,7 @@ const StepSchema = z.object({
 const UpdateFunnelSchema = z.object({
   name: z.string().min(1).optional(),
   type: z.nativeEnum(FunnelType).optional(),
-  isActive: z.boolean().optional(),
+  status: z.nativeEnum(FunnelStatus).optional(),
   steps: z.array(StepSchema).optional(),
 });
 

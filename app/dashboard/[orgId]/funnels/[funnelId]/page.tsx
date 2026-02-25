@@ -10,6 +10,8 @@ import { KpiCard } from "@/components/dashboard/kpi-card";
 import { FunnelChart } from "@/components/dashboard/funnel-chart";
 import { FunnelDetailTable } from "@/components/dashboard/funnel-detail-table";
 import { FunnelKpiConfig } from "@/components/dashboard/funnel-kpi-config";
+import { FunnelStatusSelect } from "@/components/dashboard/funnel-status-select";
+import { EditFunnelDialog } from "@/components/dashboard/edit-funnel-dialog";
 import { cn } from "@/lib/cn";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -211,18 +213,25 @@ export default async function FunnelDetailPage({
             >
               {funnel.type.replace(/_/g, " ")}
             </Badge>
-            <span
-              className={cn(
-                "inline-block h-2 w-2 rounded-full",
-                funnel.isActive ? "bg-green" : "bg-muted-foreground/30"
-              )}
+            <FunnelStatusSelect
+              orgId={orgId}
+              funnelId={funnelId}
+              currentStatus={funnel.status}
             />
-            <span className="text-[11px] text-muted-foreground/60">
-              {funnel.isActive ? "Active" : "Inactive"}
-            </span>
           </div>
         </div>
         <div className="flex items-center gap-2">
+          <EditFunnelDialog
+            orgId={orgId}
+            funnelId={funnelId}
+            initialName={funnel.name}
+            initialType={funnel.type}
+            initialSteps={funnel.steps.map((s) => ({
+              name: s.name,
+              type: s.type,
+              urlPattern: s.urlPattern ?? "",
+            }))}
+          />
           <FunnelKpiConfig
             orgId={orgId}
             funnelId={funnelId}
