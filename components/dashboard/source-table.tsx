@@ -90,6 +90,7 @@ export function SourceTable({ data, orgId }: Props) {
 
   return (
     <Card className="gap-0 border-border py-0 overflow-hidden">
+      <div className="overflow-x-auto">
       <Table>
         <TableHeader>
           <TableRow className="border-border hover:bg-transparent">
@@ -239,6 +240,7 @@ export function SourceTable({ data, orgId }: Props) {
           })}
         </TableBody>
       </Table>
+      </div>
     </Card>
   );
 }

@@ -25,7 +25,7 @@ export default async function FunnelsPage({
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-xl font-semibold tracking-tight text-foreground">
             Funnels
@@ -34,7 +34,7 @@ export default async function FunnelsPage({
             {funnels.length} funnel{funnels.length !== 1 ? "s" : ""} configured
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <Link href={`/dashboard/${orgId}/funnels/new`}>
             <Button size="sm">
               <Plus className="h-3.5 w-3.5" />

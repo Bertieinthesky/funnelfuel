@@ -1,10 +1,17 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/cn";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
+import {
+  Sheet,
+  SheetContent,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
 import {
   LayoutDashboard,
   Radio,
@@ -17,6 +24,7 @@ import {
   Layers,
   Bell,
   Settings,
+  Menu,
 } from "lucide-react";
 
 interface NavItem {
@@ -67,12 +75,22 @@ const navSections: NavSection[] = [
   },
 ];
 
-export function Sidebar({ orgId, orgName }: { orgId: string; orgName: string }) {
+/* ── Shared nav content ────────────────────────────────── */
+
+function SidebarNav({
+  orgId,
+  orgName,
+  onNavigate,
+}: {
+  orgId: string;
+  orgName: string;
+  onNavigate?: () => void;
+}) {
   const pathname = usePathname();
   const base = `/dashboard/${orgId}`;
 
   return (
-    <aside className="flex w-56 shrink-0 flex-col border-r border-border bg-card">
+    <>
       {/* Logo */}
       <div className="flex h-14 items-center gap-2 px-4">
         <div className="text-lg font-bold tracking-tight text-foreground">
@@ -112,6 +130,7 @@ export function Sidebar({ orgId, orgName }: { orgId: string; orgName: string }) 
                     variant="ghost"
                     size="sm"
                     asChild
+                    onClick={onNavigate}
                     className={cn(
                       "w-full justify-start gap-2.5 font-normal",
                       isActive
@@ -141,6 +160,44 @@ export function Sidebar({ orgId, orgName }: { orgId: string; orgName: string }) 
       <div className="px-4 py-3">
         <p className="text-[11px] text-muted-foreground/60">FunnelFuel v0.1</p>
       </div>
+    </>
+  );
+}
+
+/* ── Desktop sidebar (hidden on mobile) ────────────────── */
+
+export function Sidebar({ orgId, orgName }: { orgId: string; orgName: string }) {
+  return (
+    <aside className="hidden w-56 shrink-0 flex-col border-r border-border bg-card md:flex">
+      <SidebarNav orgId={orgId} orgName={orgName} />
     </aside>
+  );
+}
+
+/* ── Mobile header + sheet (hidden on desktop) ─────────── */
+
+export function MobileHeader({ orgId, orgName }: { orgId: string; orgName: string }) {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <div className="flex h-14 items-center justify-between border-b border-border bg-card px-4 md:hidden">
+      <div className="text-lg font-bold tracking-tight text-foreground">
+        Funnel<span className="text-primary">Fuel</span>
+      </div>
+
+      <Sheet open={open} onOpenChange={setOpen}>
+        <SheetTrigger asChild>
+          <Button variant="ghost" size="icon-sm">
+            <Menu className="h-5 w-5" />
+          </Button>
+        </SheetTrigger>
+        <SheetContent side="left" className="w-56 p-0">
+          <SheetTitle className="sr-only">Navigation</SheetTitle>
+          <div className="flex h-full flex-col">
+            <SidebarNav orgId={orgId} orgName={orgName} onNavigate={() => setOpen(false)} />
+          </div>
+        </SheetContent>
+      </Sheet>
+    </div>
   );
 }

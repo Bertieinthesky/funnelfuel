@@ -39,14 +39,14 @@ export default async function SourcesPage({
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-xl font-semibold tracking-tight text-foreground">Sources</h1>
           <p className="text-sm text-muted-foreground">
             Performance breakdown by traffic source
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <CreateSourceLink orgId={orgId} />
           {segments.length > 0 && <SegmentFilter segments={segments} />}
           <DateRangePicker />

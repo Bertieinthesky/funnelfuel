@@ -87,6 +87,7 @@ export default async function ContactsPage({
       ) : (
         <>
           <Card className="gap-0 border-border py-0 overflow-hidden">
+            <div className="overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow className="border-border hover:bg-transparent">
@@ -176,6 +177,7 @@ export default async function ContactsPage({
                 })}
               </TableBody>
             </Table>
+            </div>
           </Card>
 
           {/* Pagination */}
