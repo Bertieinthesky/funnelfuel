@@ -322,12 +322,14 @@ export async function getFunnelOverview(orgId: string, range: DateRange) {
 export async function getRecentEvents(
   orgId: string,
   limit: number = 50,
-  eventTypes?: EventType[]
+  eventTypes?: EventType[],
+  funnelId?: string
 ) {
   return db.event.findMany({
     where: {
       organizationId: orgId,
       ...(eventTypes?.length ? { type: { in: eventTypes } } : {}),
+      ...(funnelId ? { funnelId } : {}),
     },
     select: {
       id: true,
@@ -339,6 +341,7 @@ export async function getRecentEvents(
       contactId: true,
       contact: { select: { email: true, firstName: true, lastName: true, phone: true, leadQuality: true, tags: true } },
       session: { select: { ffSource: true, utmSource: true, landingPage: true } },
+      funnelStep: { select: { name: true } },
     },
     orderBy: { timestamp: "desc" },
     take: limit,

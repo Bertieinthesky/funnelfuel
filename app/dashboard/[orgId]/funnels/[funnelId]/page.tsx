@@ -14,6 +14,8 @@ import { FunnelKpiConfig } from "@/components/dashboard/funnel-kpi-config";
 import { FunnelStatusSelect } from "@/components/dashboard/funnel-status-select";
 import { EditFunnelDialog } from "@/components/dashboard/edit-funnel-dialog";
 import { FunnelHealthPanel } from "@/components/dashboard/funnel-health-panel";
+import { EventFeed } from "@/components/dashboard/event-feed";
+import { getRecentEvents } from "@/lib/dashboard/queries";
 import { cn } from "@/lib/cn";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -97,10 +99,11 @@ export default async function FunnelDetailPage({
 
   if (!funnel) notFound();
 
-  // Get step counts and health in parallel
-  const [stepCounts, health] = await Promise.all([
+  // Get step counts, health, and recent events in parallel
+  const [stepCounts, health, recentEvents] = await Promise.all([
     getFunnelStepCounts(funnelId, funnel.steps, dateRange),
     getFunnelHealth(funnelId, funnel.steps),
+    getRecentEvents(orgId, 50, undefined, funnelId),
   ]);
 
   // Determine which metrics to show as KPIs
@@ -295,6 +298,23 @@ export default async function FunnelDetailPage({
         stepHealth={health.steps}
         range={range}
       />
+
+      {/* Live Event Feed */}
+      <section>
+        <h2 className="mb-3 text-sm font-medium text-muted-foreground">
+          Recent Activity
+          <span className="ml-2 text-muted-foreground/60">
+            ({recentEvents.length} events)
+          </span>
+        </h2>
+        <EventFeed
+          orgId={orgId}
+          events={recentEvents.map((e) => ({
+            ...e,
+            timestamp: e.timestamp.toISOString(),
+          }))}
+        />
+      </section>
 
       {/* Active Split Tests */}
       {experimentData.length > 0 && (
