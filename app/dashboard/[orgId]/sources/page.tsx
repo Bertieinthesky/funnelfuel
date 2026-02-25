@@ -3,6 +3,7 @@ import { DateRangePicker } from "@/components/dashboard/date-range-picker";
 import { parseDateRange } from "@/lib/dashboard/date-range";
 import { getSourceBreakdown } from "@/lib/dashboard/queries";
 import { Card, CardContent } from "@/components/ui/card";
+import { CreateSourceLink } from "@/components/dashboard/create-source-link";
 
 export default async function SourcesPage({
   params,
@@ -35,7 +36,10 @@ export default async function SourcesPage({
             Performance breakdown by traffic source
           </p>
         </div>
-        <DateRangePicker />
+        <div className="flex items-center gap-2">
+          <CreateSourceLink orgId={orgId} />
+          <DateRangePicker />
+        </div>
       </div>
 
       {/* Summary cards */}
