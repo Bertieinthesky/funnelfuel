@@ -136,57 +136,74 @@ export default async function FunnelDetailPage({
     select: { id: true, name: true, kind: true, format: true },
   });
 
-  // Get variant performance for active experiments
-  const experimentData = await Promise.all(
-    funnel.experiments.map(async (exp) => {
-      const variantData = await Promise.all(
-        exp.variants.map(async (v) => {
-          const [assignments, conversions, revenue] = await Promise.all([
-            db.experimentAssignment.count({
-              where: {
-                variantId: v.id,
-                assignedAt: { gte: dateRange.from, lte: dateRange.to },
-              },
-            }),
-            db.event.count({
-              where: {
-                variantId: v.id,
-                type: { in: ["PURCHASE", "FORM_SUBMIT", "OPT_IN"] },
-                timestamp: { gte: dateRange.from, lte: dateRange.to },
-              },
-            }),
-            db.payment.aggregate({
-              where: {
-                variantId: v.id,
-                status: "succeeded",
-                createdAt: { gte: dateRange.from, lte: dateRange.to },
-              },
-              _sum: { amountCents: true },
-            }),
-          ]);
-
-          return {
-            id: v.id,
-            name: v.name,
-            url: v.url,
-            weight: v.weight,
-            visitors: assignments,
-            conversions,
-            revenue: (revenue._sum.amountCents ?? 0) / 100,
-            conversionRate:
-              assignments > 0 ? (conversions / assignments) * 100 : 0,
-          };
-        })
-      );
-
-      return {
-        id: exp.id,
-        name: exp.name,
-        slug: exp.slug,
-        variants: variantData,
-      };
-    })
+  // Get variant performance — batch all variant IDs into grouped queries
+  const allVariants = funnel.experiments.flatMap((exp) =>
+    exp.variants.map((v) => ({ ...v, expId: exp.id }))
   );
+  const allVariantIds = allVariants.map((v) => v.id);
+
+  const [assignmentCounts, conversionCounts, revenueSums] =
+    allVariantIds.length > 0
+      ? await Promise.all([
+          db.experimentAssignment.groupBy({
+            by: ["variantId"],
+            where: {
+              variantId: { in: allVariantIds },
+              assignedAt: { gte: dateRange.from, lte: dateRange.to },
+            },
+            _count: true,
+          }),
+          db.event.groupBy({
+            by: ["variantId"],
+            where: {
+              variantId: { in: allVariantIds },
+              type: { in: ["PURCHASE", "FORM_SUBMIT", "OPT_IN"] },
+              timestamp: { gte: dateRange.from, lte: dateRange.to },
+            },
+            _count: true,
+          }),
+          db.payment.groupBy({
+            by: ["variantId"],
+            where: {
+              variantId: { in: allVariantIds },
+              status: "succeeded",
+              createdAt: { gte: dateRange.from, lte: dateRange.to },
+            },
+            _sum: { amountCents: true },
+          }),
+        ])
+      : [[], [], []];
+
+  const assignMap = new Map(
+    assignmentCounts.map((a) => [a.variantId, a._count])
+  );
+  const convMap = new Map(
+    conversionCounts.map((c) => [c.variantId, c._count])
+  );
+  const revMap = new Map(
+    revenueSums.map((r) => [r.variantId, (r._sum.amountCents ?? 0) / 100])
+  );
+
+  const experimentData = funnel.experiments.map((exp) => ({
+    id: exp.id,
+    name: exp.name,
+    slug: exp.slug,
+    variants: exp.variants.map((v) => {
+      const visitors = assignMap.get(v.id) ?? 0;
+      const conversions = convMap.get(v.id) ?? 0;
+      const revenue = revMap.get(v.id) ?? 0;
+      return {
+        id: v.id,
+        name: v.name,
+        url: v.url,
+        weight: v.weight,
+        visitors,
+        conversions,
+        revenue,
+        conversionRate: visitors > 0 ? (conversions / visitors) * 100 : 0,
+      };
+    }),
+  }));
 
   return (
     <div className="space-y-6">

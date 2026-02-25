@@ -175,32 +175,37 @@ export async function getFunnelOverview(orgId: string, range: DateRange) {
     orderBy: { createdAt: "desc" },
   });
 
-  const funnelData = await Promise.all(
-    funnels.map(async (funnel) => {
-      const stepData = await Promise.all(
-        funnel.steps.map(async (step) => {
-          const count = await db.event.count({
-            where: {
-              funnelStepId: step.id,
-              timestamp: { gte: range.from, lte: range.to },
-            },
-          });
-          return { id: step.id, name: step.name, type: step.type, order: step.order, count };
+  // Batch: single groupBy query for all step counts instead of N+1
+  const allStepIds = funnels.flatMap((f) => f.steps.map((s) => s.id));
+  const stepCounts =
+    allStepIds.length > 0
+      ? await db.event.groupBy({
+          by: ["funnelStepId"],
+          where: {
+            funnelStepId: { in: allStepIds },
+            timestamp: { gte: range.from, lte: range.to },
+          },
+          _count: true,
         })
-      );
-
-      return {
-        id: funnel.id,
-        name: funnel.name,
-        type: funnel.type,
-        status: funnel.status,
-        activeTests: funnel.experiments.length,
-        steps: stepData,
-      };
-    })
+      : [];
+  const countMap = new Map(
+    stepCounts.map((sc) => [sc.funnelStepId, sc._count])
   );
 
-  return funnelData;
+  return funnels.map((funnel) => ({
+    id: funnel.id,
+    name: funnel.name,
+    type: funnel.type,
+    status: funnel.status,
+    activeTests: funnel.experiments.length,
+    steps: funnel.steps.map((step) => ({
+      id: step.id,
+      name: step.name,
+      type: step.type,
+      order: step.order,
+      count: countMap.get(step.id) ?? 0,
+    })),
+  }));
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

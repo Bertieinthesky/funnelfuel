@@ -27,17 +27,26 @@ export async function getFunnelStepCounts(
   steps: FunnelStep[],
   range: DateRange
 ): Promise<StepCount[]> {
-  const counts = await Promise.all(
-    steps.map(async (step) => {
-      const count = await db.event.count({
-        where: {
-          funnelStepId: step.id,
-          timestamp: { gte: range.from, lte: range.to },
-        },
-      });
-      return { step, count };
-    })
+  // Single groupBy query instead of one count per step
+  const stepIds = steps.map((s) => s.id);
+  const grouped =
+    stepIds.length > 0
+      ? await db.event.groupBy({
+          by: ["funnelStepId"],
+          where: {
+            funnelStepId: { in: stepIds },
+            timestamp: { gte: range.from, lte: range.to },
+          },
+          _count: true,
+        })
+      : [];
+  const countMap = new Map(
+    grouped.map((g) => [g.funnelStepId, g._count])
   );
+  const counts = steps.map((step) => ({
+    step,
+    count: countMap.get(step.id) ?? 0,
+  }));
 
   const firstCount = counts[0]?.count ?? 0;
 
