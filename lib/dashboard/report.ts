@@ -1,6 +1,6 @@
 import { db } from "@/lib/db";
 
-export type GroupByDimension = "source" | "tag" | "eventType" | "funnel" | "variant" | "date";
+export type GroupByDimension = "source" | "title" | "tag" | "eventType" | "funnel" | "variant" | "date";
 
 export type MetricKey =
   | "contacts"
@@ -20,9 +20,11 @@ export interface ReportFilters {
   dateTo?: string;
   tags?: string[];
   sources?: string[];
+  titles?: string[];
   funnelId?: string;
   experimentId?: string;
   leadQuality?: string;
+  segmentId?: string;
 }
 
 export interface ReportConfig {
@@ -73,6 +75,26 @@ export async function getReportResults(
     variantIds = variants.map((v) => v.id);
   }
 
+  // Resolve segment → filter rules
+  if (filters.segmentId) {
+    const segment = await db.segment.findFirst({
+      where: { id: filters.segmentId, organizationId: orgId },
+    });
+    if (segment && Array.isArray(segment.rules)) {
+      for (const rule of segment.rules as { field: string; op: string; value: string }[]) {
+        if (rule.field === "source" && rule.op === "eq") {
+          filters.sources = [...(filters.sources || []), rule.value];
+        } else if (rule.field === "title" && rule.op === "eq") {
+          filters.titles = [...(filters.titles || []), rule.value];
+        } else if (rule.field === "tag" && rule.op === "eq") {
+          filters.tags = [...(filters.tags || []), rule.value];
+        } else if (rule.field === "funnel" && rule.op === "eq") {
+          filters.funnelId = rule.value;
+        }
+      }
+    }
+  }
+
   // Sub-filters for events and payments
   const eventWhere: Record<string, unknown> = {};
   if (hasDate) eventWhere.timestamp = dateFilter;
@@ -86,15 +108,18 @@ export async function getReportResults(
   const contactWhere: Record<string, unknown> = { organizationId: orgId };
   if (filters.tags?.length) contactWhere.tags = { hasSome: filters.tags };
   if (filters.leadQuality) contactWhere.leadQuality = filters.leadQuality;
-  if (filters.sources?.length) {
-    contactWhere.sessions = {
-      some: {
-        OR: [
-          { ffSource: { in: filters.sources } },
-          { utmSource: { in: filters.sources } },
-        ],
-      },
-    };
+  if (filters.sources?.length || filters.titles?.length) {
+    const sessionFilter: Record<string, unknown> = {};
+    if (filters.sources?.length) {
+      sessionFilter.OR = [
+        { ffSource: { in: filters.sources } },
+        { utmSource: { in: filters.sources } },
+      ];
+    }
+    if (filters.titles?.length) {
+      sessionFilter.ffTitle = { in: filters.titles };
+    }
+    contactWhere.sessions = { some: sessionFilter };
   }
 
   // Fetch contacts with related data
@@ -106,7 +131,7 @@ export async function getReportResults(
       tags: true,
       _count: { select: { sessions: true } },
       sessions: {
-        select: { ffSource: true, utmSource: true },
+        select: { ffSource: true, ffTitle: true, utmSource: true },
         orderBy: { firstSeen: "asc" as const },
         take: 1,
       },
@@ -156,6 +181,11 @@ export async function getReportResults(
         const src =
           contact.sessions[0]?.ffSource || contact.sessions[0]?.utmSource || "direct";
         keys = [src];
+        break;
+      }
+      case "title": {
+        const title = contact.sessions[0]?.ffTitle || "(no title)";
+        keys = [title];
         break;
       }
       case "tag":

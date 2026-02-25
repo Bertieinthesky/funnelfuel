@@ -14,6 +14,8 @@ import {
   Activity,
   FileBarChart,
   BarChart3,
+  Layers,
+  Bell,
 } from "lucide-react";
 
 const navItems = [
@@ -23,7 +25,9 @@ const navItems = [
   { label: "Funnels", icon: Globe, path: "/funnels" },
   { label: "Split Tests", icon: GitBranch, path: "/split-tests" },
   { label: "Contacts", icon: Users, path: "/contacts" },
+  { label: "Segments", icon: Layers, path: "/segments" },
   { label: "Report", icon: FileBarChart, path: "/reports" },
+  { label: "Alerts", icon: Bell, path: "/alerts" },
   { label: "Metrics", icon: BarChart3, path: "/metrics" },
 ];
 

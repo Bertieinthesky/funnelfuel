@@ -35,6 +35,7 @@ import {
 
 const DIMENSIONS = [
   { id: "source", label: "Source" },
+  { id: "title", label: "Title" },
   { id: "tag", label: "Tag" },
   { id: "eventType", label: "Event Type" },
   { id: "funnel", label: "Funnel" },
@@ -66,9 +67,11 @@ const DATE_RANGES = [
 
 interface FilterOptions {
   sources: string[];
+  titles: string[];
   tags: string[];
   funnels: { id: string; name: string }[];
   experiments: { id: string; name: string }[];
+  segments?: { id: string; name: string }[];
 }
 
 interface ReportRow {
@@ -95,8 +98,10 @@ export function ReportBuilder({
   );
   const [tagFilter, setTagFilter] = useState("");
   const [sourceFilter, setSourceFilter] = useState("");
+  const [titleFilter, setTitleFilter] = useState("");
   const [funnelFilter, setFunnelFilter] = useState("");
   const [experimentFilter, setExperimentFilter] = useState("");
+  const [segmentFilter, setSegmentFilter] = useState("");
   const [qualityFilter, setQualityFilter] = useState("");
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState<ReportResult | null>(null);
@@ -144,8 +149,10 @@ export function ReportBuilder({
             ...(dateFrom ? { dateFrom } : {}),
             ...(tagFilter ? { tags: [tagFilter] } : {}),
             ...(sourceFilter ? { sources: [sourceFilter] } : {}),
+            ...(titleFilter ? { titles: [titleFilter] } : {}),
             ...(funnelFilter ? { funnelId: funnelFilter } : {}),
             ...(experimentFilter ? { experimentId: experimentFilter } : {}),
+            ...(segmentFilter ? { segmentId: segmentFilter } : {}),
             ...(qualityFilter ? { leadQuality: qualityFilter } : {}),
           },
         }),
@@ -309,6 +316,19 @@ export function ReportBuilder({
                   </SelectContent>
                 </Select>
               )}
+              {filterOptions.titles.length > 0 && (
+                <Select value={titleFilter || "all"} onValueChange={(v) => setTitleFilter(v === "all" ? "" : v)}>
+                  <SelectTrigger size="sm" className="text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Titles</SelectItem>
+                    {filterOptions.titles.map((t) => (
+                      <SelectItem key={t} value={t}>{t}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
               {filterOptions.funnels.length > 0 && (
                 <Select value={funnelFilter || "all"} onValueChange={(v) => setFunnelFilter(v === "all" ? "" : v)}>
                   <SelectTrigger size="sm" className="text-xs">
@@ -331,6 +351,19 @@ export function ReportBuilder({
                     <SelectItem value="all">All Experiments</SelectItem>
                     {filterOptions.experiments.map((e) => (
                       <SelectItem key={e.id} value={e.id}>{e.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+              {filterOptions.segments && filterOptions.segments.length > 0 && (
+                <Select value={segmentFilter || "all"} onValueChange={(v) => setSegmentFilter(v === "all" ? "" : v)}>
+                  <SelectTrigger size="sm" className="text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Segments</SelectItem>
+                    {filterOptions.segments.map((s) => (
+                      <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>

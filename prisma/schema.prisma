@@ -28,6 +28,7 @@ model Organization {
   experiments Experiment[]
   alerts      Alert[]
   metrics     Metric[]
+  segments    Segment[]
 
   @@map("organizations")
 }
@@ -533,6 +534,29 @@ model FunnelKpi {
   @@unique([funnelId, metricId])
   @@index([funnelId])
   @@map("funnel_kpis")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SEGMENTS
+// ─────────────────────────────────────────────────────────────────────────────
+
+model Segment {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  name           String
+  description    String?
+  // JSON array of filter rules: [{ field, operator, value }]
+  // e.g. [{ "field": "source", "op": "eq", "value": "facebook" },
+  //       { "field": "funnel", "op": "eq", "value": "cuid123" },
+  //       { "field": "url", "op": "contains", "value": "/checkout" }]
+  rules          Json
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@unique([organizationId, name])
+  @@index([organizationId])
+  @@map("segments")
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
